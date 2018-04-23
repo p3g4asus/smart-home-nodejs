@@ -43,5 +43,5 @@ exports.smartHomeProviderGoogleClientId = Config.smartHomeProviderGoogleClientId
 exports.smartHomeProvideGoogleClientSecret = Config.smartHomeProvideGoogleClientSecret;
 exports.smartHomeProviderCloudEndpoint = Config.smartHomeProviderCloudEndpoint;
 exports.smartHomeProviderApiKey = Config.smartHomeProviderApiKey;
-exports.isLocal = Config.isLocal;
+exports.isLocal = typeof __forceIsLocal=="number"?__forceIsLocal:Config.isLocal;
 exports.enableReset = Config.enableReset;
