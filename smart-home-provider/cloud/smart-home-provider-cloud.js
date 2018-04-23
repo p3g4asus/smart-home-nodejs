@@ -571,7 +571,7 @@ else {
 
       console.log('Smart Home Cloud and App listening at %s:%s', host, port);
 
-      if (config.isLocal) {
+      if (config.isLocal<0) {
         ngrok.connect(config.devPortSmartHome, function (err, url) {
           if (err) {
             console.log('ngrok err', err);

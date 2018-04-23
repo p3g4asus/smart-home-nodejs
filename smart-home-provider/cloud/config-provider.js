@@ -10,26 +10,31 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 var Config = {};
 
-Config.devPortSmartHome = "5806";
+Config.devPortSmartHome = "3000";
 Config.smartHomeProviderGoogleClientId = "ZxjqWpsYj3"; // client id that Google will use
 Config.smartHomeProvideGoogleClientSecret = "hIMH3uWlMVrqa7FAbKLBoNUMCyLCtv"; // client secret that Google will use
 Config.smartHomeProviderApiKey = "AIzaSyBNZ0MwFCCjPOiB-Zt0NBancTpE5slwQqs"; // client API Key generated on the console
-Config.isLocal = false;
+Config.isLocal = 0;
 Config.enableReset = false; // If true, all devices will be cleared when the frontend page refreshes
 
 function init() {
-  process.argv.forEach(function (value, i, arr) {
-    if (value.includes("smart-home="))
-      Config.smartHomeProviderCloudEndpoint = value.split("=")[1];
-    else if (value.includes("isLocal"))
-      Config.isLocal = true;
-  });
-  if (!Config.smartHomeProviderCloudEndpoint)
-    Config.smartHomeProviderCloudEndpoint = "http://localhost:3000";
-  console.log("config: ", Config);
+    process.argv.forEach(function(value, i, arr) {
+        if (value.includes("smart-home="))
+            Config.smartHomeProviderCloudEndpoint = value.split("=")[1];
+        else if (value.includes("isLocal=")) {
+            try {
+                Config.isLocal = parseInt(value.split("=")[1]);
+            } catch (e) {
+                conole.log(e.stack);
+                Config.isLocal = 0;
+            }
+        }
+    });
+    if (!Config.smartHomeProviderCloudEndpoint)
+        Config.smartHomeProviderCloudEndpoint = "http://localhost:3000";
+    console.log("config: ", Config);
 }
 init();
 
