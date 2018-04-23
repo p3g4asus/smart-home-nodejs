@@ -40,7 +40,9 @@ init();
 exports.devPortSmartHome = Config.devPortSmartHome;
 exports.smartHomeProviderGoogleClientId = Config.smartHomeProviderGoogleClientId;
 exports.smartHomeProvideGoogleClientSecret = Config.smartHomeProvideGoogleClientSecret;
-exports.smartHomeProviderCloudEndpoint = Config.smartHomeProviderCloudEndpoint;
+exports.smartHomeProviderCloudEndpoint =
+    typeof __smartHomeProviderCloudEndpoint=="string"?
+    __smartHomeProviderCloudEndpoint:Config.smartHomeProviderCloudEndpoint;
 exports.smartHomeProviderApiKey = Config.smartHomeProviderApiKey;
-exports.isLocal = typeof __forceIsLocal=="number"?__forceIsLocal:Config.isLocal;
+exports.isLocal = typeof __isLocal=="number"?__isLocal:Config.isLocal;
 exports.enableReset = Config.enableReset;

@@ -76,7 +76,7 @@ var DBData = {
             "orvibo1:general",
             "s201"
         ],
-        "orvhost":"192.168.25.20",
+        "orvhost":"mfzhome.ddns.net",
         "orvport":10001,
         "orvretry":0,
         "defaultremote":"blackbeam1:samsung"
