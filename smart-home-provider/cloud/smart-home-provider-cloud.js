@@ -427,6 +427,8 @@ app.get('/getauthcode', function(req, resp) {
             '');
     }
 });
+if (config.isLocal > 0)
+    app.use('/.well-known', express.static("../htdocs/.well-known"));
 app.use('/frontend', express.static('./frontend'));
 app.use('/frontend/', express.static('./frontend'));
 app.use('/', express.static('./frontend'));
@@ -632,8 +634,6 @@ if (!config.isLocal) {
 
                 console.log("Finally press the 'TEST DRAFT' button");
             });
-        } else {
-            app.use('/.well-known', express.static("../../../htdocs/.well-known"));
         }
     });
 }
