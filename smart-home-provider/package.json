@@ -16,8 +16,10 @@
     "actions-on-google": "^1.0.3",
     "body-parser": "^1.15.2",
     "ejs": "^2.5.7",
+    "eventsource": "^1.0.5",
     "express": "^4.14.0",
     "express-session": "^1.15.0",
+    "greenlock-express": "2.x",
     "morgan": "^1.7.0",
     "ngrok": "^2.2.5",
     "node-fetch": "^1.6.3"

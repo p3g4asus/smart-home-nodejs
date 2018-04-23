@@ -21,6 +21,7 @@ const session = require('express-session');
 // internal app deps
 const google_ha = require('../smart-home-app');
 const datastore = require('./datastore');
+const orv = require('./orvparams');
 const authProvider = require('./auth-provider');
 const config = require('./config-provider');
 
@@ -82,7 +83,7 @@ app.post('/smart-home-api/auth', function (request, response) {
     }).json({success: false, error: "failed auth"});
     return;
   }
-
+  orv.initUserDevices(uid);
   response.status(200)
     .set({
       'Access-Control-Allow-Origin': '*',
@@ -129,6 +130,7 @@ app.post('/smart-home-api/register-device', function (request, response) {
   datastore.registerDevice(uid, device);
 
   let registeredDevice = datastore.getStatus(uid, [device.id]);
+  //console.log("[GETSTATUSOUT/REGDEVICE] "+JSON.stringify(registeredDevice));
   if (!registeredDevice || !registeredDevice[device.id]) {
     response.status(401).set({
       'Access-Control-Allow-Origin': '*',
@@ -137,7 +139,11 @@ app.post('/smart-home-api/register-device', function (request, response) {
     return;
   }
 
-  app.requestSync(authToken, uid);
+  /*if (device.hasOwnProperty("wait"))
+    console.log("[RegDevice] device "+device.id+" wait "+device.wait);*/
+
+  if (!device.hasOwnProperty("wait") || !device.wait)
+    app.requestSync(authToken, uid);
 
   // otherwise, all good!
   response.status(200)
@@ -338,6 +344,8 @@ app.post('/smart-home-api/status', function (request, response) {
   }
 
   // otherwise, all good!
+  //console.log("[SENDSTATUS] ");
+  //console.log(devices);
   response.status(200)
     .set({
       'Access-Control-Allow-Origin': '*',
@@ -372,7 +380,7 @@ app.get('/smart-home-api/device-connection/:deviceId', function (request, respon
 // frontend UI
 app.set('jsonp callback name', 'cid');
 app.get('/getauthcode', function (req, resp) {
-  
+
   /* forbid caching to force reload of getauthcode */
   resp.set('Cache-Control', 'no-store, must-revalidate');
   /* set correct mime type else browser will refuse to execute the script*/
@@ -416,7 +424,7 @@ app.smartHomeQuery = function (uid, deviceList) {
     deviceList = null;
   }
   let devices = datastore.getStatus(uid, deviceList);
-  // console.log('smartHomeQuery devices: ', devices);
+  //console.log('smartHomeQuery devices: '+JSON.stringify(devices));
   return devices;
 };
 
@@ -433,6 +441,13 @@ app.smartHomeQueryStates = function (uid, deviceList) {
 
 app.smartHomeExec = function (uid, device) {
   // console.log('smartHomeExec', device);
+  // qui avviene l'esecuzione vera e propria. i parametri del comando inviato sono negli states della device
+  // quando smartHomeDeviceExec viene chiamato senza dover eseguire niente ci sono pure le properties
+  // Questa funzione va chiamata per aggiungere il device nel datastore specificando le properties
+  if (device["states"] && !device["properties"]) {
+      //esegui
+  }
+  console.log('smartHomeExec predevice', JSON.stringify(device));
   datastore.execDevice(uid, device);
   let executedDevice = datastore.getStatus(uid, [device.id]);
   console.log('smartHomeExec executedDevice', JSON.stringify(executedDevice));
@@ -465,8 +480,53 @@ app.changeState = function (command) {
   });
 };
 
+app.modDevice = function(uid, device) {
+    try {
+        const options = {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + datastore.Auth.users[uid].tokens[0]
+            }
+        };
+        options.body = JSON.stringify(device);
+        fetch(config.smartHomeProviderCloudEndpoint + '/smart-home-api/exec', options);
+    } catch (e) {
+        console.log(e.stack);
+    }
+}
+
+app.addDevice = function(uid, device) {
+    //app.smartHomeExec(uid, device);
+    //var lnk = config.smartHomeProviderCloudEndpoint+'/smart-home-api/device-connection/'+device.id;
+    //makeReq(lnk);
+    try {
+        var EventSource = require('eventsource');
+        var es = new EventSource(config.smartHomeProviderCloudEndpoint + '/smart-home-api/device-connection/' + device.id);
+        const options = {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + datastore.Auth.users[uid].tokens[0]
+            }
+        };
+        options.body = JSON.stringify(device);
+        fetch(config.smartHomeProviderCloudEndpoint + '/smart-home-api/register-device/', options);
+        return es;
+    } catch (e) {
+        console.log(e.stack);
+        return null;
+    }
+}
+
+var lastRequestSync = 0;
+
 app.requestSync = function (authToken, uid) {
   // REQUEST_SYNC
+  var ts = Date.now();
+  if (lastRequestSync && ts-lastRequestSync<20000)
+    return;
+  //lastRequestSync = ts;
   const apiKey = config.smartHomeProviderApiKey;
   const options = {
     method: 'POST',
@@ -487,46 +547,64 @@ app.requestSync = function (authToken, uid) {
 };
 
 const appPort = process.env.PORT || config.devPortSmartHome;
+orv.configureModule(app.addDevice,app.modDevice);
+if (!config.isLocal) {
+    const PROD = true;
+    require('greenlock-express').create({
 
-const server = app.listen(appPort, function () {
-  const host = server.address().address;
-  const port = server.address().port;
+      server: PROD ? 'https://acme-v01.api.letsencrypt.org/directory' : 'staging'
 
-  console.log('Smart Home Cloud and App listening at %s:%s', host, port);
+    , email: 'fulminedipegasus@gmail.com'
 
-  if (config.isLocal) {
-    ngrok.connect(config.devPortSmartHome, function (err, url) {
-      if (err) {
-        console.log('ngrok err', err);
-        process.exit();
+    , agreeTos: true
+
+    , approveDomains: [ 'mfzhome.ddns.net' ]
+
+    , app: app.use('/', express.static('./frontend'))
+
+    }).listen(80, 443);
+}
+else {
+    const server = app.listen(appPort, function () {
+      const host = server.address().address;
+      const port = server.address().port;
+
+      console.log('Smart Home Cloud and App listening at %s:%s', host, port);
+
+      if (config.isLocal) {
+        ngrok.connect(config.devPortSmartHome, function (err, url) {
+          if (err) {
+            console.log('ngrok err', err);
+            process.exit();
+          }
+
+          console.log("|###################################################|");
+          console.log("|                                                   |");
+          console.log("|        COPY & PASTE NGROK URL BELOW:              |");
+          console.log("|                                                   |");
+          console.log("|          " + url + "                |");
+          console.log("|                                                   |");
+          console.log("|###################################################|");
+
+          console.log("=====");
+          console.log("Visit the Actions on Google console at http://console.actions.google.com")
+          console.log("Replace the webhook URL in the Actions section with:");
+          console.log("    " + url + "/smarthome");
+
+          console.log("In the console, set the Authorization URL to:");
+          console.log("    " + url + "/oauth");
+
+          console.log("");
+          console.log("Then set the Token URL to:");
+          console.log("    " + url + "/token");
+          console.log("");
+
+          console.log("Finally press the 'TEST DRAFT' button");
+        });
       }
 
-      console.log("|###################################################|");
-      console.log("|                                                   |");
-      console.log("|        COPY & PASTE NGROK URL BELOW:              |");
-      console.log("|                                                   |");
-      console.log("|          " + url + "                |");
-      console.log("|                                                   |");
-      console.log("|###################################################|");
-
-      console.log("=====");
-      console.log("Visit the Actions on Google console at http://console.actions.google.com")
-      console.log("Replace the webhook URL in the Actions section with:");
-      console.log("    " + url + "/smarthome");
-
-      console.log("In the console, set the Authorization URL to:");
-      console.log("    " + url + "/oauth");
-
-      console.log("");
-      console.log("Then set the Token URL to:");
-      console.log("    " + url + "/token");
-      console.log("");
-
-      console.log("Finally press the 'TEST DRAFT' button");
     });
-  }
-
-});
+}
 
 function registerGoogleHa(app) {
   google_ha.registerAgent(app);
@@ -545,4 +623,3 @@ app._router.stack.forEach(function(r){
     console.log(r.route.path);
   }
 })
-

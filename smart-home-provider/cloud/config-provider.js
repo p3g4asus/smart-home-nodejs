@@ -13,12 +13,12 @@
 
 var Config = {};
 
-Config.devPortSmartHome = "3000";
+Config.devPortSmartHome = "5806";
 Config.smartHomeProviderGoogleClientId = "ZxjqWpsYj3"; // client id that Google will use
 Config.smartHomeProvideGoogleClientSecret = "hIMH3uWlMVrqa7FAbKLBoNUMCyLCtv"; // client secret that Google will use
-Config.smartHomeProviderApiKey = "<API_KEY>"; // client API Key generated on the console
+Config.smartHomeProviderApiKey = "AIzaSyBNZ0MwFCCjPOiB-Zt0NBancTpE5slwQqs"; // client API Key generated on the console
 Config.isLocal = false;
-Config.enableReset = true; // If true, all devices will be cleared when the frontend page refreshes
+Config.enableReset = false; // If true, all devices will be cleared when the frontend page refreshes
 
 function init() {
   process.argv.forEach(function (value, i, arr) {

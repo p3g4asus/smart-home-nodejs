@@ -522,6 +522,7 @@ function registerAgent(app) {
     // TODO - add error and debug to response
 
     deviceCommand.state[curDevice.id] = execDevice[curDevice.id].states;
+    deviceCommand.state[curDevice.id]['cmd'] = command['command'];
     app.changeState(deviceCommand);
 
     execDevice = execDevice[curDevice.id];

@@ -247,6 +247,9 @@ limitations under the License.
                     type: Boolean,
                     value: false
                 },
+                devices: {
+                    type: Array
+                },
                 deviceCount: {
                     type: Number,
                     value: 0
@@ -283,6 +286,7 @@ limitations under the License.
                 this.vacuums = [];
                 this.washers = [];
                 this.refrigerators = [];
+                this.devices = [];
 
                 window.requestAnimationFrame(() => {
                     this.$.add.addEventListener('click', e => this.$.modal.open());
@@ -330,6 +334,7 @@ limitations under the License.
             _showAccount: function () {
                 this.$.toast.text = `Welcome ${window.USERNAME}`;
                 this.$.toast.open();
+                this._refresh();
             },
 
             _refresh: function () {
@@ -340,30 +345,37 @@ limitations under the License.
                         'Authorization': 'Bearer ' + AUTH_TOKEN
                     }
                 };
-
+                var that = this;
                 return fetch(SMART_HOME_PROVIDER_CLOUD_ENDPOINT + '/status', options)
                     .then(function(response) {
-                        return response.json();
+                        let json2 = response.json();
+                        //console.log("[MYAPP] _reset resp0");
+                        //console.log(json2);
+                        return json2;
                     }).then(function(json) {
+                        //console.log("[MYAPP] _reset resp1");
+                        //console.log(json);
                         const uid = json.uid;
                         delete json.uid;
                         for (const key in json) {
-                            devices[key] = json[key];
+                            //json[key]['states']['online'] = true;
+                            that.devices[key] = json[key];
                         }
-                        console.log(devices);
-                        return app._handleRefresh(app, uid);
+                        //console.log(that.devices);
+                        return that._handleRefresh(that, uid);
                     });
             },
 
             _handleRefresh: function (app, uid) {
-                if (Object.keys(devices).length == 0) {
+                if (Object.keys(this.devices).length == 0) {
                     console.log("no devices");
                 } else {
+                    let devices = this.devices;
                     for (const id of Object.keys(devices)) {
                         devices[id].id = id;
                         delete devices[id].properties.id;
-                        devices[id].states.on = false;
-                        devices[id].states.online = false;
+                        //devices[id].states.on = false;
+                        //devices[id].states.online = true;
                         switch(devices[id].properties.type) {
                             case 'action.devices.types.LIGHT':
                                 app._addLight(null, devices[id]);
@@ -425,6 +437,7 @@ limitations under the License.
                 let nicknames = ['table lamp', 'reading lamp', 'doorway', 'stairway'];
                 if (light && light.hasOwnProperty("id")) {
                     this.push('lights', light);
+                    //console.log("[LIGHT] "+light.id+" "+JSON.stringify(light.states));
                 } else {
                     var lightId = getNextDeviceId();
                     this.push('lights', {
@@ -434,7 +447,8 @@ limitations under the License.
                             traits: [
                                 'action.devices.traits.OnOff',
                                 'action.devices.traits.Brightness',
-                                'action.devices.traits.ColorSpectrum'
+                                'action.devices.traits.ColorSpectrum',
+                                'action.devices.traits.Modes'
                             ],
                             name: {
                                 defaultNames: ['Smart Light'],
@@ -448,6 +462,35 @@ limitations under the License.
                                 model: 'g1337',
                                 swVersion: '1.0.11',
                                 hwVersion: '1.1'
+                            },
+                            "attributes": {
+                                  "availableModes": [{
+                                      "name": "input source",
+                                      "name_values": [{
+                                        "name_synonym": ["input source"],
+                                        "lang": "en"
+                                      }],
+                                      "settings": [{
+                                        "setting_name": "tv",
+                                        "setting_values": [{
+                                          "setting_synonym": ["tv", "television"],
+                                          "lang": "en"
+                                        }]
+                                      }, {
+                                        "setting_name": "meda player",
+                                        "setting_values": [{
+                                          "setting_synonym": ["meda player"],
+                                          "lang": "en"
+                                        }]
+                                      }, {
+                                        "setting_name": "satellite",
+                                        "setting_values": [{
+                                          "setting_synonym": ["satellite"],
+                                          "lang": "en"
+                                        }]
+                                      }],
+                                      "ordered": false
+                                    }]
                             },
                             customData: {
                                 smartHomeProviderId: 'FkldJVJCmDNSaoLkoq0txiz8Byf2Hr'
@@ -538,7 +581,9 @@ limitations under the License.
                         properties : {
                             type: 'action.devices.types.THERMOSTAT',
                             traits: [
-                                'action.devices.traits.TemperatureSetting'
+                                'action.devices.traits.TemperatureSetting',
+                                "action.devices.traits.StartStop",
+                                'action.devices.traits.Modes'
                             ],
                             name: {
                                 defaultNames: ['Smart Thermostat'],
@@ -555,7 +600,7 @@ limitations under the License.
                             },
                             attributes: {
                                 availableThermostatModes: 'off,heat,cool,on',
-                                thermostatTemperatureUnit: 'C'
+                                thermostatTemperatureUnit: 'F'
                             },
                             customData: {
                                 smartHomeProviderId: 'SGs84HiURHSb6ggrGjiv9jJ3t7U4ze'
@@ -777,6 +822,26 @@ limitations under the License.
                             willReportState: false,
                             attributes: {
                                 availableModes: [
+                                    {
+                                        name: "level",
+                                        name_values: [{
+                                            name_synonym:  [ "level" ],
+                                            lang: "ENGLISH" }],
+                                        settings: [{
+                                            setting_name: "small",
+                                            setting_values: [{
+                                                setting_synonym: [ "small", "half" ],
+                                                lang: "ENGLISH"
+                                            }]
+                                        }, {
+                                            setting_name: "large",
+                                            setting_values: [{
+                                                setting_synonym: [ "large", "full"],
+                                                lang: "ENGLISH"
+                                            }]
+                                        }],
+                                        ordered: true
+                                    },
                                     {
                                         name: "load",
                                         name_values: [{

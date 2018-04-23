@@ -62,7 +62,7 @@ limitations under the License.
             _deviceChanged() {
                 super._deviceChanged();
 
-                if (this.device.states.color.spectrumRGB) {
+                if (this.device.states['color'] && this.device.states['color']['spectrumRGB']) {
                     this.$.light.icon = "image:wb-incandescent"
                 } else {
                     this.$.light.icon = "image:wb-iridescent"
