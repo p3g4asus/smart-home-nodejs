@@ -37,7 +37,6 @@ function init() {
     console.log("config: ", Config);
 }
 init();
-
 exports.devPortSmartHome = Config.devPortSmartHome;
 exports.smartHomeProviderGoogleClientId = Config.smartHomeProviderGoogleClientId;
 exports.smartHomeProvideGoogleClientSecret = Config.smartHomeProvideGoogleClientSecret;
