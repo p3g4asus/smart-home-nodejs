@@ -11,6 +11,7 @@ var MFZClient = (function(){
         that.host = host || "127.0.0.1";
         that.maxRetry = retry || 0;
         that.retry = 0;
+        that.timerPing = null;
         that.currentOut = "";
         that.lastMsgTs = 0;
         that.msgidx = 6859;
@@ -23,6 +24,18 @@ var MFZClient = (function(){
             else if (that.onError)
                 that.onError(that.id,err);
         };
+
+        that.onMsgNotReceived = function() {
+            that.timerPing = null;
+            that.disconnect();
+            that.connect();
+        }
+
+        that.onMsgReceived = function(timeout) {
+            if (that.timerPing!==null)
+                clearTimeout(that.timerPing);
+            that.timerPing = setTimeout(that.onMsgNotReceived, timeout*1000);
+        }
 
         that.onDevices = null;
         that.setOnDevices = function(fun) {
@@ -40,6 +53,8 @@ var MFZClient = (function(){
         }
 
         that.disconnect = function() {
+            if (that.timerPing!==null)
+                clearTimeout(that.timerPing);
             that.tcpclient.destroy();
             that.tcpclient = null;
         }
@@ -61,10 +76,13 @@ var MFZClient = (function(){
                             if (res && res.action) {
                                 if (res.action.randomid==that.msgidx && res.action.actionclass=="ActionDevicedl") {
                                     if (that.onDevices) {
+                                        that.onMsgReceived(120);
                                         console.log('[TCPC] OnDevices');
                                         that.onDevices(that.id,res);
                                     }
                                 }
+                                else if (res.action.actionclass=="ActionPing")
+                                    that.onMsgReceived(120);
                                 else if (that.onMessage) {
                                     //console.log('[TCPC] OnMessage');
                                     that.onMessage(that.id,res.action.actionclass,res);
@@ -89,6 +107,8 @@ var MFZClient = (function(){
                 that.tcpclient.connect(that.port, that.host, function() {
                     console.log('[TCPC] Connected');
                     fun = typeof fun === "undefined"?"devicedl":fun
+                    if (fun=="devicedl")
+                        that.onMsgReceived(25);
                     that.writecmnd(fun);
                 });
             }
