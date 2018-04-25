@@ -449,18 +449,16 @@ exports.doRun = doRun;
 
 function processMessage(uid,msg,res) {
     try {
-        var dev;
         console.log("[ProcessMessage] "+msg+" "+JSON.stringify(res));
-        var devices = ud["devices"];
-        if ((dev = res["action"]["device"]) && devices) {
-            var ud = DBData[uid];
-            var devname = dev.name;
+        let dev,ud,devices;
+        if ((dev = res["action"]["device"]) && (ud = DBData[uid]) && (devices = ud["devices"])) {
+            let devname = dev.name;
             if (msg=="ActionNotifystate" || msg=="ActionStateon" || msg=="ActionStateon" || msg=="ActionStatechange") {
                 if (dev.type=="DeviceS20") {
                     devices.some(function(d) {
                         if (d.properties.deviceInfo.model=="switch" &&
                             d.properties.customData["device"]==devname) {
-                            var st = dev.state==1;
+                            let st = dev.state==1;
                             if (st!=d.states.on) {
                                 d.states.on = st;
                                 if (exports.onMod)
