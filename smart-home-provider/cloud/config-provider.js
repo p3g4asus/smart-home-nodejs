@@ -128,12 +128,13 @@ Config.smartHomeProviderGoogleClientId = "ZxjqWpsYj3"; // client id that Google 
 Config.smartHomeProvideGoogleClientSecret = "hIMH3uWlMVrqa7FAbKLBoNUMCyLCtv"; // client secret that Google will use
 Config.smartHomeProviderApiKey = "AIzaSyBNZ0MwFCCjPOiB-Zt0NBancTpE5slwQqs"; // client API Key generated on the console
 Config.flag = 0;
-Config.flag = typeof __flag=="number"?
-    __flag:Config.__setInside("START_TYPE","NGROK",
+Config.flag = Config.__setInside("START_TYPE","NGROK",
         "AUTO_DEV","NO","RESET_DEV","YES","WELL_KNOWN","NO","AUTOLOGIN","NO");
 
 function init() {
-    process.argv.forEach(function(value, i, arr) {
+    if (typeof __argv == "undefined")
+        __argv = process.argv;
+    __argv.forEach(function(value, i, arr) {
         if (value.includes("smart-home="))
             Config.smartHomeProviderCloudEndpoint = value.split("=")[1];
         else if (value.startsWith("-f")) {
@@ -155,9 +156,7 @@ init();
 exports.devPortSmartHome = Config.devPortSmartHome;
 exports.smartHomeProviderGoogleClientId = Config.smartHomeProviderGoogleClientId;
 exports.smartHomeProvideGoogleClientSecret = Config.smartHomeProvideGoogleClientSecret;
-exports.smartHomeProviderCloudEndpoint =
-    typeof __smartHomeProviderCloudEndpoint=="string"?
-    __smartHomeProviderCloudEndpoint:Config.smartHomeProviderCloudEndpoint;
+exports.smartHomeProviderCloudEndpoint = Config.smartHomeProviderCloudEndpoint;
 exports.smartHomeProviderApiKey = Config.smartHomeProviderApiKey;
 exports.getInside = Config.getInside;
 exports.setInside = Config.setInside;

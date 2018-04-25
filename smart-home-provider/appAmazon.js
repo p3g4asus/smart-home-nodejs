@@ -1,4 +1,3 @@
-__flag = require('./cloud/config-provider.js').setInside(0,"START_TYPE","LOCAL","AUTO_DEV","YES","RESET_DEV","NO","WELL_KNOWN","YES","AUTOLOGIN","YES");
-__smartHomeProviderCloudEndpoint = "https://mfzaws1.ddns.net";
+__argv = ["smart-home=https://mfzaws1.ddns.net","-fSTART_TYPE=LOCAL","-fAUTO_DEV=YES","-fRESET_DEV=NO","-fWELL_KNOWN=YES","-fAUTOLOGIN=YES"];
 process.chdir(__dirname);
 require('./cloud/smart-home-provider-cloud.js');
