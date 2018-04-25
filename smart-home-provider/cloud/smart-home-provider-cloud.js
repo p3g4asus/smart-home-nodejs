@@ -521,7 +521,7 @@ app.modDevice = function(uid, device) {
             }
         };
         options.body = JSON.stringify(device);
-        fetch(config.smartHomeProviderCloudEndpoint + '/smart-home-api/exec', options);
+        fetch("http://localhost:"+config.devPortSmartHome + '/smart-home-api/exec', options);
     } catch (e) {
         console.log(e.stack);
     }
@@ -754,7 +754,7 @@ if (config.getInside("START_TYPE")=="GREENLOCK") {
             ,
         app: app.use('/', express.static('./frontend'))
 
-    }).listen(80, 443);
+    }).listen(appPort, 443);
 } else {
     const server = app.listen(appPort, function() {
         const host = server.address().address;
