@@ -688,7 +688,7 @@ app.addDevice = function(uid, device) {
     //makeReq(lnk);
     try {
         var EventSource = require('eventsource');
-        var es = new EventSource(config.smartHomeProviderCloudEndpoint + '/smart-home-api/device-connection/' + device.id);
+        var es = new EventSource("http://localhost:"+config.devPortSmartHome + '/smart-home-api/device-connection/' + device.id);
         const options = {
             method: 'POST',
             headers: {
@@ -697,7 +697,7 @@ app.addDevice = function(uid, device) {
             }
         };
         options.body = JSON.stringify(device);
-        fetch(config.smartHomeProviderCloudEndpoint + '/smart-home-api/register-device/', options);
+        fetch("http://localhost:"+config.devPortSmartHome + '/smart-home-api/register-device/', options);
         return es;
     } catch (e) {
         console.log(e.stack);
