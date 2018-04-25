@@ -451,10 +451,10 @@ function processMessage(uid,msg,res) {
     try {
         var dev;
         console.log("[ProcessMessage] "+msg+" "+JSON.stringify(res));
-        if ((dev = res["action"]["device"])) {
+        var devices = ud["devices"];
+        if ((dev = res["action"]["device"]) && devices) {
             var ud = DBData[uid];
             var devname = dev.name;
-            var devices = ud["devices"];
             if (msg=="ActionNotifystate" || msg=="ActionStateon" || msg=="ActionStateon" || msg=="ActionStatechange") {
                 if (dev.type=="DeviceS20") {
                     devices.some(function(d) {
