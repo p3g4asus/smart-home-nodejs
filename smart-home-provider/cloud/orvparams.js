@@ -79,7 +79,8 @@ var DBData = {
         "orvhost":"mfzhome.ddns.net",
         "orvport":10001,
         "orvretry":0,
-        "defaultremote":"blackbeam1:samsung"
+        "defaultremote":"blackbeam1:samsung",
+        "autologin":true
     }
 }
 
@@ -584,9 +585,14 @@ function processMessage(uid,msg,res) {
     }
 }
 
-function configureModule(onAdd,onMod) {
+function configureModule(onAdd,onMod,doAutoLogin) {
     exports.onAdd = onAdd;
     exports.onMod = onMod;
+    Object.keys(DBData).forEach(function(uid) {
+        let udata = DBData[uid];
+        if (udata["autologin"] && doAutoLogin)
+            doAutoLogin(uid);
+    });
 }
 exports.configureModule = configureModule;
 exports.onAdd = null;

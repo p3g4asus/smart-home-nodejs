@@ -91,7 +91,8 @@ app.post('/smart-home-api/auth', function(request, response) {
         });
         return;
     }
-    orv.initUserDevices(uid);
+    if (config.getInside("AUTO_DEV")=="YES")
+        orv.initUserDevices(uid);
     response.status(200)
         .set({
             'Access-Control-Allow-Origin': '*',
@@ -190,7 +191,7 @@ app.post('/smart-home-api/reset-devices', function(request, response) {
     let device = request.body;
     // Only complete the reset if this is enabled.
     // If the developer disables this, the request will succeed without doing anything.
-    if (config.enableReset) {
+    if (config.getInside("RESET_DEV")=="YES") {
         datastore.resetDevices(uid);
 
         // Resync for the user
@@ -427,7 +428,7 @@ app.get('/getauthcode', function(req, resp) {
             '');
     }
 });
-if (config.isLocal > 0)
+if (config.getInside("WELL_KNOWN")=="YES")
     app.use('/.well-known', express.static("../htdocs/.well-known"));
 app.use('/frontend', express.static('./frontend'));
 app.use('/frontend/', express.static('./frontend'));
@@ -526,6 +527,161 @@ app.modDevice = function(uid, device) {
     }
 }
 
+app.autoLogin = function(uid) {
+    //fech login
+    //document.querySelector('[name="redirect_uri"]').value = params.get('redirect_uri');
+    //document.querySelector('[name="client_id"]').value = params.get('client_id');
+    //document.querySelector('[name="redirect_uri"]').value = params.get('redirect_uri');
+    //document.querySelector('[name="state"]').value = params.get('state');
+    //document.querySelector('[name="username"]').value = document.querySelector('paper-input[name="paper_username"]').value;
+    //document.querySelector('[name="password"]').value = document.querySelector('paper-input[name="paper_password"]').value;
+    //document.querySelector('#loginform').submit();
+    if (!datastore.Auth.users[uid])
+        return;
+    var querystring = require('querystring');
+    var postobj = {
+        'redirect_uri': '/frontend',
+        'client_id': config.smartHomeProviderGoogleClientId,
+        'state': 'mfz_over',
+        'username': datastore.Auth.users[uid].name,
+        'password': datastore.Auth.users[uid].password
+    };
+    var post_data = querystring.stringify(postobj);
+
+    // Set up the request
+    var authCode = null;
+    var cookie = '';
+    var doGetAuthCode = null;
+
+    /*let r = new RegExp('http(s?)://([^:]+)[:]?([0-9]*)');
+    let m = r.exec(config.smartHomeProviderCloudEndpoint);
+    var h = m[1] == 's' ? require('https') : require('http');
+    // An object of options to indicate where to post to
+    var http_options = {
+        host: m[2],
+        port: m[3].length == 0 ? (m[1] == 's' ? 443 : 80) : m[3],
+        path: '/login',
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Content-Length': Buffer.byteLength(post_data)
+        }
+    };
+    var http_req = h.request(http_options, function(res) {
+        res.setEncoding('utf8');
+        Object.keys(res.headers).forEach(
+            function(name) {
+                let value = res.headers[name].toString();
+                console.log('[autoLogin LOGIN HEADERS]: ' + name + " = " + value);
+                if (name.indexOf('cookie') >= 0) {
+                    cookie = value.substring(0, value.indexOf(";"));
+                }
+            }
+        );
+        res.on('data', function(chunk) {
+            let rr = new RegExp(postobj.redirect_uri + '(\\?[^ ]+)');
+            let mm = rr.exec(chunk);
+            if (mm) {
+                const parsed = querystring.parse(mm[1]);
+                if (parsed && parsed['code']) {
+                    authCode = parsed.code;
+                    console.log('[autoLogin LOGIN]: authcode ' + authCode);
+                }
+            }
+            console.log('[autoLogin LOGIN]: ' + chunk);
+            doGetAuthCode();
+        });
+    });*/
+
+    var request = require('request');
+
+    var options = {
+        url: config.smartHomeProviderCloudEndpoint+'/login',
+        method: 'POST',
+        followRedirect: false,
+        body: post_data,
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Content-Length': Buffer.byteLength(post_data)
+        }
+    }
+
+    // Start the request
+    request(options, function (error, response, body) {
+        if (!error) {
+            Object.keys(response.headers).forEach(
+                function(name) {
+                    let value = response.headers[name].toString();
+                    console.log('[autoLogin login HEADERS]: ' + name + " = " + value);
+                    if (name.indexOf('cookie') >= 0) {
+                        cookie = value.substring(0, value.indexOf(";"));
+                    }
+                }
+            );
+            console.log('[autoLogin login BODY]: ' +body);
+            let rr = new RegExp(postobj.redirect_uri + '\\?([^ ]+)');
+            let mm = rr.exec(body);
+            if (mm) {
+                const parsed = querystring.parse(mm[1]);
+                if (parsed && parsed['code']) {
+                    authCode = parsed.code;
+                    console.log('[autoLogin LOGIN]: authcode ' + authCode);
+                }
+            }
+            doGetAuthCode();
+        }
+    });
+
+    doGetAuthCode = function() {
+        // Configure the request
+        options = {
+            url: config.smartHomeProviderCloudEndpoint+'/getauthcode',
+            method: 'GET',
+            headers: {
+                "Cookie": cookie
+            },
+            qs: {'code': authCode}
+        }
+
+        // Start the request
+        request(options, function (error, response, body) {
+            if (!error && response.statusCode == 200) {
+                Object.keys(response.headers).forEach(
+                    function(name) {
+                        let value = response.headers[name].toString();
+                        console.log('[autoLogin getauthcode HEADERS]: ' + name + " = " + value);
+                    }
+                );
+                console.log('[autoLogin getauthcode BODY]: ' +body);
+                if (body.startsWith('var'))
+                    eval(body);
+                options.method = 'POST';
+                options.headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + AUTH_TOKEN
+                };
+                options.url = config.smartHomeProviderCloudEndpoint+'/smart-home-api/auth';
+                delete options['qs'];
+                request(options, function (error, response, body) {
+                    if (!error && response.statusCode == 200) {
+                        Object.keys(response.headers).forEach(
+                            function(name) {
+                                let value = response.headers[name].toString();
+                                console.log('[autoLogin auth HEADERS]: ' + name + " = " + value);
+                            }
+                        );
+                        console.log('[autoLogin ahth BODY]: ' +body);
+                    }
+                });
+            }
+        });
+    }
+
+    // post the data
+    //http_req.write(post_data);
+    //http_req.end();
+}
+
 app.addDevice = function(uid, device) {
     //app.smartHomeExec(uid, device);
     //var lnk = config.smartHomeProviderCloudEndpoint+'/smart-home-api/device-connection/'+device.id;
@@ -577,8 +733,10 @@ app.requestSync = function(authToken, uid) {
 };
 
 const appPort = process.env.PORT || config.devPortSmartHome;
-orv.configureModule(app.addDevice, app.modDevice);
-if (!config.isLocal) {
+orv.configureModule(app.addDevice,
+    app.modDevice,
+    config.getInside("AUTOLOGIN")=="YES"?app.autoLogin:null);
+if (config.getInside("START_TYPE")=="GREENLOCK") {
     const PROD = true;
     require('greenlock-express').create({
 
@@ -604,7 +762,7 @@ if (!config.isLocal) {
 
         console.log('Smart Home Cloud and App listening at %s:%s', host, port);
 
-        if (config.isLocal < 0) {
+        if (config.getInside("START_TYPE")=="NGROK") {
             ngrok.connect(config.devPortSmartHome, function(err, url) {
                 if (err) {
                     console.log('ngrok err', err);

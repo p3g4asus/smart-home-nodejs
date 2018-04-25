@@ -4,7 +4,7 @@
   "description": "Mock implementation of device manufacturer platform to facilitate development of sample device and adapter.",
   "main": "app.js",
   "scripts": {
-    "start": "node app.js isLocal=-1",
+    "start": "node app.js -fSTART_TYPE=NGROK",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
@@ -22,6 +22,9 @@
     "greenlock-express": "2.x",
     "morgan": "^1.7.0",
     "ngrok": "^2.2.5",
-    "node-fetch": "^1.6.3"
+    "node-fetch": "^1.6.3",
+    "querystring": "^0.2.0",
+    "request": "^2.85.0",
+    "npm": "^6.0.0"
   }
 }

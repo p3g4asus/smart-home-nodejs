@@ -12,29 +12,144 @@
 // limitations under the License.
 var Config = {};
 
+var expm = {
+    "START_TYPE": {
+        "m": 7,
+        "s": 0,
+        "values": {
+            "2":"NGROK",
+            "0":"GREENLOCK",
+            "1":"LOCAL"
+        },
+        "values2": {
+            "NGROK":2,
+            "GREENLOCK":0,
+            "LOCAL":1
+        }
+    },
+    "RESET_DEV": {
+        "m": 1,
+        "s": 3,
+        "values": {
+            "1":"YES",
+            "0":"NO"
+        },
+        "values2": {
+            "YES":1,
+            "NO":0
+        }
+    },
+    "AUTO_DEV": {
+        "m": 1,
+        "s": 4,
+        "values": {
+            "1":"YES",
+            "0":"NO"
+        },
+        "values2": {
+            "YES":1,
+            "NO":0
+        }
+    },
+    "WELL_KNOWN": {
+        "m": 1,
+        "s": 5,
+        "values": {
+            "1":"YES",
+            "0":"NO"
+        },
+        "values2": {
+            "YES":1,
+            "NO":0
+        }
+    },
+    "AUTOLOGIN": {
+        "m": 1,
+        "s": 6,
+        "values": {
+            "1":"YES",
+            "0":"NO"
+        },
+        "values2": {
+            "YES":1,
+            "NO":0
+        }
+    }
+}
+
+Config.cstr = expm;
+
+Config.getInside = function(nm) {
+    if (Config.cstr[nm]) {
+        let v = Config.flag;
+        let val = (v>>Config.cstr[nm].s)&(Config.cstr[nm].m);
+        let vals = ""+val;
+        if (Config.cstr[nm].values[vals])
+            return Config.cstr[nm].values[vals];
+    }
+    return "";
+}
+
+Config.setInside = function(o) {
+    let newv = o;
+    for (let i = 1; i+1 < arguments.length; i+=2) {
+        let nm = arguments[i];
+        let vname = arguments[i+1];
+        if (Config.cstr[nm]) {
+            if (typeof Config.cstr[nm].values2[vname]!="undefined") {
+                let v = Config.cstr[nm].values2[vname];
+                newv = (newv&(~(Config.cstr[nm].m<<Config.cstr[nm].s)))|((v&Config.cstr[nm].m)<<Config.cstr[nm].s);
+            }
+        }
+    }
+    return newv;
+}
+
+Config.__setInside = function() {
+    let oldv = Config.flag,oldv2;
+    for (let i = 0; i < arguments.length; i++) {
+        oldv2 = arguments[i];
+        arguments[i] = oldv;
+        oldv = oldv2;
+    }
+    arguments[arguments.length++] = oldv;
+    Config.flag = Config.setInside.apply(null,arguments);
+    return Config.flag;
+}
+
+Config.printConfigFlag = function() {
+    console.log("CONFFLAG: ");
+    Object.keys(Config.cstr).forEach(function (key) {
+        console.log(key+" = "+Config.getInside(key));
+    });
+}
 Config.devPortSmartHome = "3000";
 Config.smartHomeProviderGoogleClientId = "ZxjqWpsYj3"; // client id that Google will use
 Config.smartHomeProvideGoogleClientSecret = "hIMH3uWlMVrqa7FAbKLBoNUMCyLCtv"; // client secret that Google will use
 Config.smartHomeProviderApiKey = "AIzaSyBNZ0MwFCCjPOiB-Zt0NBancTpE5slwQqs"; // client API Key generated on the console
-Config.isLocal = 0;
-Config.enableReset = false; // If true, all devices will be cleared when the frontend page refreshes
+Config.flag = 0;
+Config.flag = typeof __flag=="number"?
+    __flag:Config.__setInside("START_TYPE","NGROK",
+        "AUTO_DEV","NO","RESET_DEV","YES","WELL_KNOWN","NO","AUTOLOGIN","NO");
 
 function init() {
     process.argv.forEach(function(value, i, arr) {
         if (value.includes("smart-home="))
             Config.smartHomeProviderCloudEndpoint = value.split("=")[1];
-        else if (value.includes("isLocal=")) {
+        else if (value.startsWith("-f")) {
             try {
-                Config.isLocal = parseInt(value.split("=")[1]);
+                let nmval = value.substring(2);
+                let nmsplit = nmval.split('=');
+                Config.__setInside(nmsplit[0],nmsplit[1]);
             } catch (e) {
                 conole.log(e.stack);
-                Config.isLocal = 0;
             }
         }
     });
     if (!Config.smartHomeProviderCloudEndpoint)
         Config.smartHomeProviderCloudEndpoint = "http://localhost:3000";
     console.log("config: ", Config);
+    Config.printConfigFlag();
 }
 init();
 exports.devPortSmartHome = Config.devPortSmartHome;
@@ -44,5 +159,5 @@ exports.smartHomeProviderCloudEndpoint =
     typeof __smartHomeProviderCloudEndpoint=="string"?
     __smartHomeProviderCloudEndpoint:Config.smartHomeProviderCloudEndpoint;
 exports.smartHomeProviderApiKey = Config.smartHomeProviderApiKey;
-exports.isLocal = typeof __isLocal=="number"?__isLocal:Config.isLocal;
-exports.enableReset = Config.enableReset;
+exports.getInside = Config.getInside;
+exports.setInside = Config.setInside;
