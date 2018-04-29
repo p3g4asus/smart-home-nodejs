@@ -718,7 +718,7 @@ app.removeDevice = function(uid, device) {
             }
         };
         options.body = JSON.stringify(device);
-        console.log("[RemDevice] Removing device "+device.id);
+        //console.log("[RemDevice] Removing device "+device.id);
         fetch("http://localhost:"+config.devPortSmartHome + '/smart-home-api/remove-device/', options);
     } catch (e) {
         console.log(e.stack);

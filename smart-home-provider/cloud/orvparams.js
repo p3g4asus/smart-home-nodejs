@@ -454,10 +454,12 @@ function processDeviceDl(uid,objdata){
             else
                 dev.wait = true;
             let es = ud.events[dev.id];
-            es.close();
-            es.onmessage = null;
-            es.onerror = null;
-            es.removeAllListeners('change');
+            if (es) {
+                es.close();
+                es.onmessage = null;
+                es.onerror = null;
+                es.removeAllListeners('change');
+            }
             exports.onRemove(uid,dev);
         });
     }
