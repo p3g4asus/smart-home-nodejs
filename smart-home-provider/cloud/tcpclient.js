@@ -15,10 +15,12 @@ var MFZClient = (function(){
         that.currentOut = "";
         that.lastMsgTs = 0;
         that.msgidx = 6859;
+        that.devicedl = false;
         that.errorHandler = function(err) {
             console.log("[TCPC] "+err);
             that.tcpclient.destroy();
             that.tcpclient = null;
+            taht.devidedl = false;
             if (!that.maxRetry || ++that.retry<that.maxRetry)
                 setTimeout(that.connect, 5000);
             else if (that.onError)
@@ -57,6 +59,7 @@ var MFZClient = (function(){
                 clearTimeout(that.timerPing);
             that.tcpclient.destroy();
             that.tcpclient = null;
+            taht.devidedl = false;
         }
 
         that.connect = function(fun) {
@@ -77,15 +80,18 @@ var MFZClient = (function(){
                                 if (res.action.randomid==that.msgidx && res.action.actionclass=="ActionDevicedl") {
                                     if (that.onDevices) {
                                         that.onMsgReceived(120);
+                                        that.devicedl = true;
                                         console.log('[TCPC] OnDevices');
                                         that.onDevices(that.id,res);
                                     }
                                 }
-                                else if (res.action.actionclass=="ActionPing")
-                                    that.onMsgReceived(120);
-                                else if (that.onMessage) {
-                                    //console.log('[TCPC] OnMessage');
-                                    that.onMessage(that.id,res.action.actionclass,res);
+                                else if (that.devicedl) {
+                                    if (res.action.actionclass=="ActionPing")
+                                        that.onMsgReceived(120);
+                                    else if (that.onMessage) {
+                                        //console.log('[TCPC] OnMessage');
+                                        that.onMessage(that.id,res.action.actionclass,res);
+                                    }
                                 }
                             }
                         }
