@@ -20,7 +20,7 @@ var MFZClient = (function(){
             console.log("[TCPC] "+err);
             that.tcpclient.destroy();
             that.tcpclient = null;
-            taht.devicedl = false;
+            that.devicedl = false;
             if (!that.maxRetry || ++that.retry<that.maxRetry)
                 setTimeout(that.connect, 5000);
             else if (that.onError)
@@ -59,7 +59,7 @@ var MFZClient = (function(){
                 clearTimeout(that.timerPing);
             that.tcpclient.destroy();
             that.tcpclient = null;
-            taht.devicedl = false;
+            that.devicedl = false;
         }
 
         that.connect = function(fun) {
