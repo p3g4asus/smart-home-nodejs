@@ -203,8 +203,22 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                         listSync[dev.id] = true;
                         dev.states.on = true;
                         let remoteObj;
-                        let volk = getRemoteVolumeKey(statesObj.brightness,remoteObj = ud["devicetable"].remote[defRemote]);
-                        if (volk)
+                        let remotes = ud["devicetable"].remote;
+                        let volk = getRemoteVolumeKey(statesObj.brightness,remoteObj = remotes[defRemote]);
+                        if (!volk) {
+                            Object.keys(remotes).some(function (remn) {
+                                if (remotes.hasOwnProperty(remn)) {
+                                    remoteObj = remotes[remn];
+                                    volk = getRemoteVolumeKey(statesObj.brightness,remoteObj);
+                                    if (volk) {
+                                        cli.emitir(remoteObj.device,remn+":"+volk);
+                                        return true;
+                                    }
+                                }
+                                return false;
+                            });
+                        }
+                        else
                             cli.emitir(defDevice,defRemote+":"+volk);
                     }
                 }
@@ -271,11 +285,18 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                         }
                         key = defRemote+":"+key+"#"+mul;
                     }
-                    else
-                        defDevice = ud["devicetable"].sh[key.substring(1)].device;
+                    else {
+                        let dtitem = ud["devicetable"].sh[key.substring(1)];
+                        defDevice = dtitem.device;
+                        if (dtitem.lastremote) {
+                            defRemote = dtitem.lastremote;
+                            currentremote = defDevice+":"+defRemote;
+                        }
+                    }
                     cli.emitir(defDevice,key);
                 }
                 if (currentremote!=ud["currentremote"]) {
+                    console.log("[DevMsg] Changing current remote: "+ud["currentremote"]+"->"+currentremote);
                     ud["currentremote"] = currentremote;
                     Object.assign(listSync, replaceRemote(ud["devices"],defDevice,defRemote));
                 }
@@ -701,9 +722,10 @@ function createDeviceTable(obj,userData) {
                         var kks = key.split(':');
                         var kn;
                         var shn = null;
+                        var lastremote = null;
                         if (kks.length>=2 &&
                             ((kn = kks[1]).charAt(0)=="@" || kn.charAt(0)=="$" ||
-                            userData.filters.indexOf(devname+":"+kn)>=0) &&
+                            userData.filters.indexOf(devname+":"+(lastremote = kn))>=0) &&
                             typeof devices.sh[shn = kks[0].substr(1)]!="string") {
                             var m = shChannelRegexp.exec(shn);
                             //console.log("[DeviceTable] Ecco 5 "+shn+ " "+m);
@@ -712,6 +734,7 @@ function createDeviceTable(obj,userData) {
                                 getTranslation(shn,configuredLocale);
                             devices.sh[shn] = {
                                 "device":devname,
+                                "lastremote":lastremote,
                                 "key":'@'+shn,
                                 "devicenick":getTranslation(devname,configuredLocale),
                                 "keynick":shnick};
@@ -737,7 +760,7 @@ var remoteNumRegexp = /^([^0-9]*)([0-9]+)([^\+\-]*)$/;
 
 var shChannelRegexp = /^[a-z]_([0-9]+)_(.*)$/;
 
-var mulKeyRegexp = /^(av|[^\+\-]+[\+\-])$/;
+var mulKeyRegexp = /^(set|exit|av|[^\+\-]+[\+\-])$/;
 
 function convertNumber(num,remoteObj) {
     if (remoteObj.numData.pre.length || remoteObj.numData.post.length) {
