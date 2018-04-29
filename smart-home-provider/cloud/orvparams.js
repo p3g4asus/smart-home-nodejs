@@ -449,10 +449,7 @@ function processDeviceDl(uid,objdata){
     let olddevices;
     if (exports.onRemove && (olddevices = ud["devices"])) {
         olddevices.forEach(function(dev,idx){
-            if (idx==olddevices.length-1)
-                dev.wait = false;
-            else
-                dev.wait = true;
+            dev.wait = true;
             let es = ud.events[dev.id];
             if (es) {
                 es.close();
