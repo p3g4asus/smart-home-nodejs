@@ -781,21 +781,23 @@ function getRemoteVolumeKey(brightn,remoteObj) {
     if (!remoteObj)
         return null;
     var intval = parseInt(brightn)-50;
-    var idx;
     var volk = "";
     if (intval<0) {
-        idx = remoteObj.volumekeys.indexOf(volk = "v"+(-intval)+"-");
-        if (idx<0)
-            volk = "v-#"+(-intval);
+        intval = -intval;
+        if (remoteObj.volumekeys.indexOf(volk = "v"+intval+"-")<0)
+            volk = "v-";
+        else
+            return volk;
     }
     else {
         if (intval==0)
             intval = 1;
-        idx = remoteObj.volumekeys.indexOf(volk = "v"+intval+"+");
-        if (idx<0)
-            volk = "v+#"+intval;
+        if (remoteObj.volumekeys.indexOf(volk = "v"+intval+"+")<0)
+            volk = "v+";
+        else
+            return volk;
     }
-    return volk;
+    return remoteObj.volumekeys.indexOf(volk)>=0?volk+"#"+intval:null;
 }
 
 var remoteVolumeTemplate =  {
