@@ -446,6 +446,21 @@ function processDeviceDl(uid,objdata){
             console.log("[ProcessDevDl] Ecco 7 "+JSON.stringify(obj));
         }
     });
+    let olddevices;
+    if (exports.onRemove && (olddevices = ud["devices"])) {
+        olddevices.forEach(function(dev,idx){
+            if (idx==olddevices.length-1)
+                dev.wait = false;
+            else
+                dev.wait = true;
+            let es = ud.events[dev.id];
+            es.close();
+            es.onmessage = null;
+            es.onerror = null;
+            es.removeAllListeners('change');
+            exports.onRemove(uid,dev);
+        });
+    }
     ud["devices"] = devices;
     ud["events"] = {};
     if (exports.onAdd) {
@@ -604,9 +619,10 @@ function processMessage(uid,msg,res) {
     }
 }
 
-function configureModule(onAdd,onMod,doAutoLogin) {
+function configureModule(onAdd,onMod,onRemove,doAutoLogin) {
     exports.onAdd = onAdd;
     exports.onMod = onMod;
+    exports.onRemove = onRemove;
     Object.keys(DBData).forEach(function(uid) {
         let udata = DBData[uid];
         if (udata["autologin"] && doAutoLogin)
@@ -616,6 +632,7 @@ function configureModule(onAdd,onMod,doAutoLogin) {
 exports.configureModule = configureModule;
 exports.onAdd = null;
 exports.onMod = null;
+exports.onRemove = null;
 
 function initUserDevices(uid) {
     if (DBData[uid]) {

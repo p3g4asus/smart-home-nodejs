@@ -240,8 +240,8 @@ app.post('/smart-home-api/remove-device', function(request, response) {
         });
         return;
     }
-
-    app.requestSync(authToken, uid);
+    if (!device.hasOwnProperty("wait") || !device.wait)
+        app.requestSync(authToken, uid);
 
     // otherwise, all good!
     response.status(200)
@@ -705,6 +705,25 @@ app.addDevice = function(uid, device) {
     }
 }
 
+app.removeDevice = function(uid, device) {
+    //app.smartHomeExec(uid, device);
+    //var lnk = config.smartHomeProviderCloudEndpoint+'/smart-home-api/device-connection/'+device.id;
+    //makeReq(lnk);
+    try {
+        const options = {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + datastore.Auth.users[uid].tokens[0]
+            }
+        };
+        options.body = JSON.stringify(device);
+        fetch("http://localhost:"+config.devPortSmartHome + '/smart-home-api/remove-device/', options);
+    } catch (e) {
+        console.log(e.stack);
+    }
+}
+
 var lastRequestSync = 0;
 
 app.requestSync = function(authToken, uid) {
@@ -733,8 +752,10 @@ app.requestSync = function(authToken, uid) {
 };
 
 const appPort = process.env.PORT || config.devPortSmartHome;
-orv.configureModule(app.addDevice,
+orv.configureModule(
+    app.addDevice,
     app.modDevice,
+    app.removeDevice,
     config.getInside("AUTOLOGIN")=="YES"?app.autoLogin:null);
 if (config.getInside("START_TYPE")=="GREENLOCK") {
     const PROD = true;
