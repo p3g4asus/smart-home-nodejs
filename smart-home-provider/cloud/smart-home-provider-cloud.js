@@ -422,10 +422,21 @@ app.get('/getauthcode', function(req, resp) {
             '})();' +
             ''); // redirect to login
     } else {
-        resp.status(200).send('' +
-            'var AUTH_TOKEN = "' + req.session.user.tokens[0] + '";' +
-            'var USERNAME = "' + req.session.user.name + '";' +
-            '');
+        let code = req.query["code"] ? req.query.code : req.body["code"];
+        let authCode;
+        if (!code || !(authCode = datastore.Auth.authcodes[code])) {
+            console.error('invalid code');
+            resp.status(400).send('invalid code');
+        }
+        else if (new Date(authCode.expiresAt) < Date.now()) {
+            console.error('expired code');
+            resp.status(400).send('expired code');
+        }
+        else
+            resp.status(200).send('' +
+                'var AUTH_TOKEN = "' + req.session.user.tokens[0] + '";' +
+                'var USERNAME = "' + req.session.user.name + '";' +
+                '');
     }
 });
 if (config.getInside("WELL_KNOWN")=="YES")

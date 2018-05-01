@@ -63,7 +63,7 @@ SmartHomeModel.genUser = function (username, password) {
 
 SmartHomeModel.generateAuthCode = function (uid, clientId) {
   let authCode = genRandomString();
-  authstore.authcodes[authCode] = {
+  authstore.Auth.authcodes[authCode] = {
     type: 'AUTH_CODE',
     uid: uid,
     clientId: clientId,
@@ -73,7 +73,7 @@ SmartHomeModel.generateAuthCode = function (uid, clientId) {
 };
 
 SmartHomeModel.getAccessToken = function (code) {
-  let authCode = authstore.authcodes[code];
+  let authCode = authstore.Auth.authcodes[code];
   if (!authCode) {
     console.error('invalid code');
     return false;
@@ -310,7 +310,7 @@ function handleAuthCode(req, res) {
     return res.status(400).send('invalid client id or secret');
   }
 
-  let authCode = authstore.authcodes[code];
+  let authCode = authstore.Auth.authcodes[code];
   if (!authCode) {
     console.error('invalid code');
     return res.status(400).send('invalid code');
