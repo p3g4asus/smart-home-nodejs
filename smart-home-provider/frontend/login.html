@@ -200,10 +200,10 @@ limitations under the License.
         <img src='images/assistant-small.png' />
 
         <form action='/login' method='post' id='loginform'>
-            <paper-input label="Username" value="rick" name="paper_username">
+            <paper-input label="Username" value="matteo" name="paper_username">
                 <iron-icon icon="social:person" prefix></iron-icon>
             </paper-input>
-            <paper-input label="Password" value="oldman" type="password" name="paper_password">
+            <paper-input label="Password" value="aA111280" type="password" name="paper_password">
                 <iron-icon icon="communication:vpn-key" prefix></iron-icon>
             </paper-input>
 
@@ -239,7 +239,7 @@ limitations under the License.
             // Get URL parameters
             let params = getUrlParameters();
             // Set each hidden input from a value obtained from the URL
-            document.querySelector('[name="redirect_uri"]').value = params.get('redirect_uri');
+            document.querySelector('[name="redirect"]').value = params.get('redirect_uri');
             document.querySelector('[name="client_id"]').value = params.get('client_id');
             document.querySelector('[name="redirect_uri"]').value = params.get('redirect_uri');
             document.querySelector('[name="state"]').value = params.get('state');

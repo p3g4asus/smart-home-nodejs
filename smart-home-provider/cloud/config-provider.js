@@ -10,6 +10,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+const redis_client = require('./redisconf');
+const Client = require('./clients');
 var Config = {};
 
 var expm = {
@@ -124,12 +126,16 @@ Config.printConfigFlag = function() {
     });
 }
 Config.devPortSmartHome = "3000";
-Config.smartHomeProviderGoogleClientId = "ZxjqWpsYj3"; // client id that Google will use
-Config.smartHomeProvideGoogleClientSecret = "hIMH3uWlMVrqa7FAbKLBoNUMCyLCtv"; // client secret that Google will use
-Config.smartHomeProviderApiKey = "AIzaSyBNZ0MwFCCjPOiB-Zt0NBancTpE5slwQqs"; // client API Key generated on the console
+Config.smartHomeProviderGoogleUser = ""; // client id that Google will use
+//Config.smartHomeProviderGoogleClientId = "ZxjqWpsYj3"; // client id that Google will use
+//Config.smartHomeProvideGoogleClientSecret = "hIMH3uWlMVrqa7FAbKLBoNUMCyLCtv"; // client secret that Google will use
+//Config.smartHomeProviderApiKey = "AIzaSyBNZ0MwFCCjPOiB-Zt0NBancTpE5slwQqs"; // client API Key generated on the console
 Config.flag = 0;
 Config.flag = Config.__setInside("START_TYPE","NGROK",
         "AUTO_DEV","NO","RESET_DEV","YES","WELL_KNOWN","NO","AUTOLOGIN","NO");
+Config.smartHomeProvideGoogleClientSecret = '';
+Config.smartHomeProviderGoogleClientId = '';
+Config.smartHomeProviderApiKey = '<API_KEY>';
 
 function init() {
     if (typeof __argv == "undefined")
@@ -139,6 +145,8 @@ function init() {
             Config.smartHomeProviderCloudEndpoint = value.split("=")[1];
         else if (value.includes("http-port="))
             Config.devPortSmartHome = value.split("=")[1];
+        else if (value.includes("username="))
+            Config.smartHomeProviderGoogleUser = value.split("=")[1];
         else if (value.startsWith("-f")) {
             try {
                 let nmval = value.substring(2);
@@ -151,14 +159,35 @@ function init() {
     });
     if (!Config.smartHomeProviderCloudEndpoint)
         Config.smartHomeProviderCloudEndpoint = "http://localhost:3000";
-    console.log("config: ", Config);
-    Config.printConfigFlag();
+    exports.devPortSmartHome = Config.devPortSmartHome;
+    exports.smartHomeProviderGoogleClientId = Config.smartHomeProviderGoogleClientId;
+    exports.smartHomeProvideGoogleClientSecret = Config.smartHomeProvideGoogleClientSecret;
+    exports.smartHomeProviderCloudEndpoint = Config.smartHomeProviderCloudEndpoint;
+    exports.smartHomeProviderApiKey = Config.smartHomeProviderApiKey;
+    exports.smartHomeProviderGoogleUser = Config.smartHomeProviderGoogleUser;
+    exports.getInside = Config.getInside;
+    exports.setInside = Config.setInside;
+    return new Promise(function(resolve,reject) {
+        redis_client.on("ready",function() {
+            Client.findByUsername(Config.smartHomeProviderGoogleUser).then(
+                function(cc) {
+                    if (cc && typeof cc == "object") {
+                        exports.smartHomeProvideGoogleClientSecret = cc.secret;
+                        exports.smartHomeProviderGoogleClientId = cc.stringid;
+                        exports.smartHomeProviderApiKey = cc.apikey;
+                        console.log("[OK] config: ", exports);
+                        Config.printConfigFlag();
+                        resolve();
+                    }
+                    else
+                        reject(100);
+                }
+            ).catch(function(err) {
+                console.log("[Err] config: ", Config);
+                Config.printConfigFlag();
+                reject(err);
+            });
+        });
+    });
 }
-init();
-exports.devPortSmartHome = Config.devPortSmartHome;
-exports.smartHomeProviderGoogleClientId = Config.smartHomeProviderGoogleClientId;
-exports.smartHomeProvideGoogleClientSecret = Config.smartHomeProvideGoogleClientSecret;
-exports.smartHomeProviderCloudEndpoint = Config.smartHomeProviderCloudEndpoint;
-exports.smartHomeProviderApiKey = Config.smartHomeProviderApiKey;
-exports.getInside = Config.getInside;
-exports.setInside = Config.setInside;
+exports.init = init;

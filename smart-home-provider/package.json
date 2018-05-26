@@ -25,6 +25,8 @@
     "node-fetch": "^1.6.3",
     "querystring": "^0.2.0",
     "request": "^2.85.0",
-    "npm": "^6.0.0"
+    "npm": "^6.0.0",
+    "bcryptjs": "*",
+    "redis": "*"
   }
 }

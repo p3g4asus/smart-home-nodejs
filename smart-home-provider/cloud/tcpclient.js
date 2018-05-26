@@ -21,22 +21,45 @@ var MFZClient = (function(){
             that.tcpclient.destroy();
             that.tcpclient = null;
             that.devicedl = false;
-            if (!that.maxRetry || ++that.retry<that.maxRetry)
-                setTimeout(that.connect, 5000);
-            else if (that.onError)
+            if (that.onError)
                 that.onError(that.id,err);
         };
 
         that.onMsgNotReceived = function() {
             that.timerPing = null;
+            let oldretry = that.retry;
             that.disconnect();
-            that.connect();
+            that.retry = oldretry;
+            that.onclose(true);
         }
 
         that.onMsgReceived = function(timeout) {
             if (that.timerPing!==null)
                 clearTimeout(that.timerPing);
             that.timerPing = setTimeout(that.onMsgNotReceived, timeout*1000);
+        }
+
+        that.currentPromise = null;
+        that.promise = function(str,timeout) {
+            if (that.currentPromise)
+                return that.currentPromise.promise;
+            else {
+                timeout = timeout || 30;
+                timeout*=1000;
+                that.currentPromise = {};
+                that.currentPromise.msg = str;
+                that.currentPromise.promise = new Promise(function(resolve,reject) {
+                    that.currentPromise.resolve = resolve;
+                    that.currentPromise.reject = reject;
+                    that.currentPromise.timer = setTimeout(function() {
+                        that.disconnect();
+                        that.currentPromise = null;
+                        reject(that.id);
+                    },timeout);
+                    that.writecmnd(str);
+                });
+                return that.currentPromise.promise;
+            }
         }
 
         that.onDevices = null;
@@ -55,17 +78,48 @@ var MFZClient = (function(){
         }
 
         that.disconnect = function() {
+            console.log('[TCPC] Disconnect called');
+            if (that.timerPing!==null) {
+                clearTimeout(that.timerPing);
+                that.timerPing = null;
+            }
+            if (that.tcpclient) {
+                let tcpc = that.tcpclient;
+                that.tcpclient = null;
+                tcpc.destroy();
+            }
+            that.devicedl = false;
+            that.retry = 0;
+        }
+
+        that.onclose = function(force) {
+            let f = (typeof force=="boolean")?force:false;
             if (that.timerPing!==null)
                 clearTimeout(that.timerPing);
-            that.tcpclient.destroy();
-            that.tcpclient = null;
-            that.devicedl = false;
+            if (that.tcpclient || f) {
+                if (!f)
+                    console.log('[TCPC] Connection closed');
+                if (!that.maxRetry || ++that.retry<that.maxRetry) {
+                    console.log("[TCPC Err] R "+that.retry+"/"+that.maxRetry);
+                    setTimeout(that.connect, 5000);
+                }
+                else {
+                    if (that.currentPromise) {
+                        clearTimeout(that.currentPromise.timer);
+                        that.currentPromise.reject(that.id);
+                        that.currentPromise = null;
+                    }
+                    that.disconnect();
+                }
+            }
         }
 
         that.connect = function(fun) {
             if (that.tcpclient==null) {
                 that.tcpclient = new net.Socket();
                 that.tcpclient.on('data', function(data) {
+                    if (!that.currentPromise)
+                        that.retry = 0;
                     var ts = Date.now();
 
                     that.currentOut+=data.toString();
@@ -77,7 +131,13 @@ var MFZClient = (function(){
                             that.lastMsgTs = 0;
                             var res = JSON.parse(data);
                             if (res && res.action) {
-                                if (res.action.randomid==that.msgidx && res.action.actionclass=="ActionDevicedl") {
+                                let msg = "",strmsg;
+                                if ((strmsg = res.action.actionclass) && strmsg.length>7) {
+                                    msg = strmsg.charAt(6).toLowerCase() + strmsg.slice(7);
+                                }
+                                console.log("[TCPC] strmsg "+strmsg+" msg "+msg+" prom "+
+                                    (that.currentPromise?that.currentPromise.msg:"undefined"));
+                                if (res.action.randomid==that.msgidx && strmsg=="ActionDevicedl") {
                                     if (that.onDevices) {
                                         that.onMsgReceived(120);
                                         that.devicedl = true;
@@ -86,12 +146,23 @@ var MFZClient = (function(){
                                     }
                                 }
                                 else if (that.devicedl) {
-                                    if (res.action.actionclass=="ActionPing")
+                                    if (strmsg=="ActionPing")
                                         that.onMsgReceived(120);
                                     else if (that.onMessage) {
                                         //console.log('[TCPC] OnMessage');
-                                        that.onMessage(that.id,res.action.actionclass,res);
+                                        that.onMessage(that.id,strmsg,res);
                                     }
+                                }
+                                if (that.currentPromise &&
+                                    that.currentPromise.msg==msg) {
+                                    clearTimeout(that.currentPromise.timer);
+                                    that.currentPromise.resolve({
+                                        uid: that.id,
+                                        action: strmsg,
+                                        obj: res
+                                    });
+                                    that.currentPromise = null;
+                                    that.retry = 0;
                                 }
                             }
                         }
@@ -104,10 +175,8 @@ var MFZClient = (function(){
                         that.lastMsgTs = 0;
                     }
                 });
-                that.tcpclient.on('close', function() {
-                    console.log('[TCPC] Connection closed');
-                    that.connect();
-                });
+
+                that.tcpclient.on('close', that.onclose);
                 that.tcpclient.on('error', that.errorHandler);
                 console.log('[TCPC] Connecting to '+that.host+':'+that.port);
                 that.tcpclient.connect(that.port, that.host, function() {

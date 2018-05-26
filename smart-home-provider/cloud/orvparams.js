@@ -1,6 +1,9 @@
 const tcpclient = require('./tcpclient');
 const VERSION = "1.5";
-var translations = {
+var redis_client = require("./redisconf");
+var User = require("./users");
+var translations = {};
+/*var translations = {
   "it": {
     "right": "destra",
     "subtitle": "sottotitolo",
@@ -64,12 +67,66 @@ var translations = {
     "remote":"remote",
     "chan":"bear"
   }
-};
+};*/
 
-const configuredLocale = "it";
+function editTranslation(lang,renames) {
+    let rens = "translation:"+lang;
+    let len = 0;
+    Object.keys(renames).forEach(function (key) {
+        rens += ','+key+','+renames[key];
+        len++;
+    });
+    return new Promise(function(resolve,reject) {
+        if (!len)
+            resolve();
+        else {
+            let funcallback = function(err0,res0) {
+                if (err0 || res0.indexOf("OK")<0)
+                    reject1(err0?err0:9000);
+                else
+                    resolve();
+            }
+            eval('redis_client.hmset('+rens+',funcallback);');
+        }
+    });
+}
+
+exports.editTranslation = editTranslation;
+
+function loadTranslations() {
+    return new Promise(function(resolve,reject) {
+        redis_client.smembers("translations",function(err0,res0) {
+            console.log("[loadTrans] arr "+JSON.stringify(res0));
+        	if (err0 || !res0 || res0.constructor !== Array || res0.length==0)
+        		reject(err0);
+        	else {
+                var trans = {};
+                let okTrans = false;
+                let processTrans = function(n) {
+                    redis_client.hgetall("translation:"+res0[n],function(err1,res1) {
+                        console.log("[loadTrans] tr["+res0[n]+"("+n+")] "+JSON.stringify(res1));
+                        if (!err1 && res1) {
+                            trans[res0[n]] = res1;
+                            okTrans = true;
+                        }
+                        if (n+1<res0.length)
+                            processTrans(n+1);
+                        else if (okTrans)
+                            resolve(trans);
+                        else
+                            reject(1500);
+                    });
+                }
+                processTrans(0);
+            }
+        });
+    });
+}
+
+//const configuredLocale = "it";
 
 var DBData = {
-    "1234": {
+    /*"1234": {
         "filters" : [
             "blackbeam1:samsung",
             "blackbeam1:sky",
@@ -81,7 +138,7 @@ var DBData = {
         "orvretry":0,
         "defaultremote":"blackbeam1:samsung",
         "autologin":true
-    }
+    }*/
 }
 
 function getTranslation(name,loc) {
@@ -122,7 +179,7 @@ function replaceObj(obj, repl) {
 }*/
 }
 
-function replaceRemote(devices,newDevice,newRemote) {
+function replaceRemote(devices,newDevice,newRemote,configuredLocale) {
     var newRemoteNick = getTranslation(newRemote,configuredLocale);
     var newDeviceNick = getTranslation(newDevice,configuredLocale);
     listSync = {};
@@ -211,7 +268,7 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                                     remoteObj = remotes[remn];
                                     volk = getRemoteVolumeKey(statesObj.brightness,remoteObj);
                                     if (volk) {
-                                        cli.emitir(remoteObj.device,remn+":"+volk);
+                                        cli.emitir(remoteObj.device,remoteObj.remote+":"+volk);
                                         return true;
                                     }
                                 }
@@ -235,7 +292,7 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                         statesObj.hasOwnProperty("brightness")) {
                         dev.states.brightness = statesObj.brightness;
                         let num = statesObj.brightness+dev.properties.customData.offset;
-                        let numdata = ud["devicetable"].remote[defRemote].numData;
+                        let numdata = ud["devicetable"].remote[defs].numData;
                         if (numdata) {
                             cli.emitir(defDevice,defRemote+":"+numdata.pre+num+numdata.post);
                         }
@@ -274,8 +331,8 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                                 if (remotes.hasOwnProperty(remn)) {
                                     remoteObj = remotes[remn];
                                     if (remoteObj.keys.indexOf(key)>=0) {
-                                        currentremote = remoteObj.device+":"+remn;
-                                        defRemote = remn;
+                                        currentremote = remn;
+                                        defRemote = remoteObj.remote;
                                         defDevice = remoteObj.device;
                                         return true;
                                     }
@@ -286,7 +343,7 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                         key = defRemote+":"+key+"#"+mul;
                     }
                     else {
-                        let dtitem = ud["devicetable"].sh[key.substring(1)];
+                        let dtitem = ud["devicetable"].sh[dev.properties.customData.device+':'+key.substring(1)];
                         defDevice = dtitem.device;
                         if (dtitem.lastremote) {
                             defRemote = dtitem.lastremote;
@@ -298,7 +355,7 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                 if (currentremote!=ud["currentremote"]) {
                     console.log("[DevMsg] Changing current remote: "+ud["currentremote"]+"->"+currentremote);
                     ud["currentremote"] = currentremote;
-                    Object.assign(listSync, replaceRemote(ud["devices"],defDevice,defRemote));
+                    Object.assign(listSync, replaceRemote(ud["devices"],defDevice,defRemote,ud.user.options.language));
                 }
                 Object.keys(listSync).forEach(function (key) {
                     if (listSync.hasOwnProperty(key)) {
@@ -339,28 +396,54 @@ function cloneFromTemplate(templ, repl) {
 
 function processDeviceDl(uid,objdata){
     var ud = DBData[uid];
-    var ds = createDeviceTable(objdata,ud);
+    var ds = createDeviceTable(objdata,ud.user);
     ud["devicetable"] = ds;
+    let configuredLocale = ud.user.options.language;
     var devices = [];
     var volumeNeeded = false;
     var keyDevices = {"power":0};
-    var defs = ud.defaultremote.split(':');
-    var defRemote = defs[1];
-    var defDevice = defs[0];
+    let defaultremote = ud.user.options.defaultremote;
+    if (defaultremote.length==0) {
+        ud.filters.some(function(key) {
+            if (key.indexOf(':')>0) {
+                defaultremote = key;
+                return true;
+            }
+            else
+                return false;
+        });
+        if (defaultremote.length==0) {
+            Object.keys(ds.remote).some(function(key) {
+                if (ds.remote[key].filtered) {
+                    defaultremote = key;
+                    return true;
+                }
+                else
+                    return false;
+            });
+        }
+    }
+    var defs = defaultremote.split(':');
+    var defRemote = "";
+    var defDevice = "";
+    if (defs.length==2) {
+        defRemote = defs[1];
+        defDevice = defs[0];
+    }
     var defRemoteNick = getTranslation(defRemote,configuredLocale);
     var defDeviceNick = getTranslation(defDevice,configuredLocale);
     var obj,repl = {};
-    ud["currentremote"] = ud.defaultremote;
+    ud.user.options.defaultremote = ud["currentremote"] = defaultremote;
     ud["nicks"] = {};
     console.log("[ProcessDevDl] Ecco 1 "+defRemoteNick+"/"+defDeviceNick);
     Object.keys(ds.remote).forEach(function (key) {
-        if (ds.remote.hasOwnProperty(key)) {
-            var rn = ds.remote[key];
+        let rn;
+        if (ds.remote.hasOwnProperty(key) && (rn = ds.remote[key]).filtered) {
             repl = {
                 "didx":devices.length,
                 "device":rn["device"],
                 "devicenick":rn["devicenick"],
-                "remote":key,
+                "remote":rn["remote"],
                 "remotenick":rn["remotenick"],
                 "version":VERSION
             };
@@ -415,10 +498,10 @@ function processDeviceDl(uid,objdata){
         devices.push(obj = cloneFromTemplate(remoteBigNumTemplate,repl));
         console.log("[ProcessDevDl] Ecco 5.1 "+JSON.stringify(obj));
     }
-    replaceRemote(devices,defDevice,defRemote);
+    replaceRemote(devices,defDevice,defRemote,ud.user.options.language);
     Object.keys(ds.sh).forEach(function (key) {
         var rn;
-        if (ds.sh.hasOwnProperty(key) && typeof ds.sh[key]=="object") {
+        if (ds.sh.hasOwnProperty(key) && ds.sh[key].filtered) {
             var rn = ds.sh[key];
             repl = {
                 "didx":devices.length,
@@ -435,11 +518,11 @@ function processDeviceDl(uid,objdata){
         }
     });
     Object.keys(ds.switch).forEach(function (key) {
-        if (ds.switch.hasOwnProperty(key)) {
+        if (ds.switch.hasOwnProperty(key) && ds.switch[key].filtered) {
             repl = {
                 "didx":devices.length,
                 "device":key,
-                "devicenick":getTranslation(key,configuredLocale),
+                "devicenick":ds.switch[key].devicenick,
                 "version":VERSION
             };
             devices.push(obj = cloneFromTemplate(remoteSwitchTemplate,repl));
@@ -547,7 +630,7 @@ function processMessage(uid,msg,res) {
                             effectivenum = parseInt(effectivename.substring(idx+1));
                             effectivename = effectivename.substring(0,idx);
                         }
-                        if ((remoteObj = ud["devicetable"].remote[effectiveremote]) &&
+                        if ((remoteObj = ud["devicetable"].remote[devname+':'+effectiveremote]) &&
                             remoteObj.numData && remoteObj.numData.pre.length==0 &&
                             remoteObj.numData.post.length==0) {
                             if (/^[0-9]+$/.exec(effectivename)) {
@@ -576,7 +659,7 @@ function processMessage(uid,msg,res) {
                                 d.states.on = true;
                             modd = true;
                             var remoteObj;
-                            if ((remoteObj = ud["devicetable"].remote[k.remote]) &&
+                            if ((remoteObj = ud["devicetable"].remote[devname+':'+k.remote]) &&
                                 remoteObj.numData) {
                                 var reg = new RegExp(remoteObj.pre+"([0-9]+)"+remoteObj.post);
                                 var m = reg.exec(k.name);
@@ -612,6 +695,11 @@ function processMessage(uid,msg,res) {
                 });
             }
         }
+        let conn;
+        if (ud && (conn = ud['conn']) && res) {
+            conn.write('event: action\n');
+            conn.write('data: ' + JSON.stringify({'pld':res,'msg':'action'}) + '\n\n');
+        }
     }
     catch (e) {
         console.log(e.stack);
@@ -622,10 +710,21 @@ function configureModule(onAdd,onMod,onRemove,doAutoLogin) {
     exports.onAdd = onAdd;
     exports.onMod = onMod;
     exports.onRemove = onRemove;
-    Object.keys(DBData).forEach(function(uid) {
-        let udata = DBData[uid];
-        if (udata["autologin"] && doAutoLogin)
-            doAutoLogin(uid);
+    let al = function() {
+        return User.loadAutoLoginUsers().then(function (users) {
+            users.forEach(function(us) {
+                doAutoLogin(us.uid);
+            });
+        });
+    }
+    loadTranslations().then(function(trans) {
+        translations = trans;
+        console.log("[TRANS ok] "+JSON.stringify(trans));
+        return al();
+    }).catch(function(err) {
+        translations = {"it": {},"en":{}};
+        console.log("[TRANS fail] "+err);
+        return al();
     });
 }
 exports.configureModule = configureModule;
@@ -633,28 +732,271 @@ exports.onAdd = null;
 exports.onMod = null;
 exports.onRemove = null;
 
-function initUserDevices(uid) {
-    if (DBData[uid]) {
-        var ud = DBData[uid];
-        if (!ud['client']) {
-            var cli = new tcpclient.MFZClient(uid,ud['orvhost'],ud['orvport'],ud['orvretry']);
-            ud["client"] = cli;
-            cli.setOnError(function(err) {
-                console.log(error);
+function initUserDevices(user,test) {
+    var ud = {};
+    let uid = user.uid;
+    if (typeof test=="undefined")
+        test = false;
+    if (test || !(ud = DBData[uid]) || !ud['client']) {
+        var cli = new tcpclient.MFZClient(uid,user.options.orvhost,user.options.orvport,user.options.orvretry);
+        if (!test) {
+            DBData[uid]['user'] = user;
+            DBData[uid]["client"] = cli;
+            cli.setOnError(function(uid,err) {
+                let conn,ud;
+                if ((ud = DBData[uid]) && (conn = ud['conn'])) {
+                    conn.write('event: conmsg\n');
+                    conn.write('data: ' + JSON.stringify({'msg':'conmsg','pld':'Connection error '+err}) + '\n\n');
+                }
             });
             cli.setOnDevices(processDeviceDl);
             cli.setOnMessage(processMessage);
             cli.connect();
         }
         else {
-            ud["client"].writecmnd("devicedl");
+            cli.maxRetry = 3;
+            return cli.promise("deviced").then(function(obj) {
+                try {
+                    cli.disconnect();
+                    let out = createTestDataBundle(obj.obj,user);
+                    return {'connected':DBData[uid] && DBData[uid]["client"],'dev':out};
+                }
+                catch (err) {
+                    if (err.stack)
+                        console.log(err.stack);
+                    else
+                        console.log(err);
+                    throw err;
+                }
+            }, function(uid) {
+                cli.disconnect();
+                throw uid;
+            });
         }
     }
+    else if (ud['client']) {
+        ud["client"].writecmnd("devicedl");
+    }
+    return null;
 }
 
 exports.initUserDevices = initUserDevices;
 
-function createDeviceTable(obj,userData) {
+function testConnection(usercp) {
+    return initUserDevices(usercp,true).then(function (deviceTable) {
+        //"idx":0,"name":"samsung","filtered":true,"device":"blackbeam1","default":true,"keys":[],"shs":[]
+        let ret = [];
+        let idx = 0;
+        let shsbydev = {};
+        Object.keys(deviceTable.remote).forEach(function (key) {
+            ret.push(Object.assign({
+                "idx":idx++,
+                "type":"r",
+                "defalut":usercp.options.defaultremote==key
+            },deviceTable.remote[key]));
+        });
+        Object.keys(deviceTable.sh).forEach(function (key) {
+            let item,sh;
+            if (!(item = shsbydev[(sh = deviceTable.sh[key]).device]))
+                item = shsbydev[sh.device] = {
+                    "devicenick":sh.devicenick,
+                    "device":sh.device,
+                    "remote":'@'+sh.device,
+                    "remotenick":'@'+sh.devicenick,
+                    "keys":[],
+                    "keysraw":[],
+                    "keysnick":[],
+                    "filtered":sh.filtered,
+                    "type":"h",
+                    "defalut":false
+                };
+            item.keysraw.push(sh.shraw);
+            item.keys.push(sh.key);
+            item.keysnick.push(sh.keynick);
+        });
+        Object.keys(deviceTable.switch).forEach(function (key) {
+            ret.push({
+                "idx":idx++,
+                "defalut":false,
+                "device":key,
+                "remote":key,
+                "type":"s",
+                "devicenick":deviceTable.switch[key].devicenick,
+                "remotenick":deviceTable.switch[key].devicenick,
+                "filtered":deviceTable.switch[key].filtered
+            });
+        });
+        return ret;
+    });
+}
+
+exports.testConnection = testConnection;
+
+function createTestDataBundle(obj,user) {
+    var devices = [];
+    var h;
+    if (obj && obj.action && (h = obj.action.hosts)) {
+        //console.log("[DeviceTable] Ecco 0 "+(typeof userData)+" "+userData);
+        let filters = user.options.filters;
+        let configuredLocale = user.options.language;
+        let remoteAdded = {};
+        let shAdded = {};
+        Object.keys(h).forEach(function (key) {
+            if (h.hasOwnProperty(key)) {
+                var dev = h[key];
+                var devname = key;
+                let devnick = getTranslation(devname,configuredLocale);
+                let add = {
+                    "type":"d",
+                    "remote":"",
+                    "remotenick":"",
+                    "idx":devices.length,
+                    "device":devname,
+                    "devicenick":devnick,
+                    "filtered":false,
+                    "default":false,
+                    "items":null,
+                    "raw":""
+                };
+                devices.push(add);
+                if (dev.type=="DeviceCT10" || dev.type=="DeviceAllOne" || dev.type=="DeviceRM") {
+                    add.type+="r"+dev.type.substring(6);
+                    add.items = [];
+                    for (var i = 0; i<dev.dir.length; i++) {
+                        var key = dev.dir[i];
+                        var kks = key.split(':');
+                        var rn;
+                        var kn;
+                        if (kks.length>=2) {
+                            if (!remoteAdded[rn = devname+':'+kks[0]]) {
+                                add.items.push(remoteAdded[rn] = {
+                                    "type":"r1",
+                                    "remote":kks[0],
+                                    "remotenick":getTranslation(kks[0],configuredLocale),
+                                    "idx":add.items.length,
+                                    "device":devname,
+                                    "devicenick":devnick,
+                                    "filtered":filters.indexOf(rn)>=0,
+                                    "default":user.options.defaultremote==rn,
+                                    "items":[],
+                                    "raw":""
+                                });
+                            }
+                            kn = kks[1];
+                            remoteAdded[rn].items.push({
+                                "type":"k1",
+                                "remote":kn,
+                                "remotenick":getTranslation(kn,configuredLocale),
+                                "idx":remoteAdded[rn].items.length,
+                                "device":kks[0],
+                                "devicenick":getTranslation(kks[0],configuredLocale),
+                                "filtered":remoteAdded[rn].filtered,
+                                "default":false,
+                                "items":null,
+                                "raw":kks.length>=3?kks[2]:""
+                            });
+                        }
+                    }
+                    for (var i = 0; i<dev.sh.length; i++) {
+                        var key = dev.sh[i];
+                        var kks = key.split(':');
+                        if (kks.length>=2) {
+                            let shn = kks[0].substr(1);
+                            let kn = devname+":"+kks[0];
+                            if (!shAdded[devname]) {
+                                add.items.push(shAdded[devname] = {
+                                    "type":"r2",
+                                    "remote":"@sh",
+                                    "remotenick":"@sh",
+                                    "idx":add.items.length,
+                                    "device":devname,
+                                    "devicenick":devnick,
+                                    "filtered":false,
+                                    "default":false,
+                                    "items":[],
+                                    "raw":""
+                                });
+                            }
+                            if (!shAdded[kn]) {
+                                var m = shChannelRegexp.exec(shn);
+                                //console.log("[DeviceTable] Ecco 5 "+shn+ " "+m);
+                                var shnick = m?
+                                    getTranslation(m[2].replace(/_/g,' '),configuredLocale):
+                                    getTranslation(shn,configuredLocale);
+                                shAdded[devname].items.push(shAdded[kn] = {
+                                    "type":"k2",
+                                    "remote":kks[0],
+                                    "remotenick":shnick,
+                                    "idx":shAdded[devname].items.length,
+                                    "device":devname,
+                                    "devicenick":devnick,
+                                    "filtered":true,
+                                    "default":false,
+                                    "items":{},
+                                    "raw":""
+                                });
+                            }
+
+                            if (kks.length>2) {
+                                let lastremote = kks[1];
+                                let newfiltered = filters.indexOf(devname+":"+lastremote)>=0;
+                                if (shAdded[kn].filtered)
+                                    shAdded[kn].filtered = newfiltered;
+                                shAdded[kn].items[lastremote] = true;
+                            }
+                            shAdded[kn].raw+=(shAdded[kn].raw.length?"|":"")+key.substring(key.indexOf(':')+1);
+                        }
+                    }
+                }
+                else if (dev.type=="DeviceS20") {
+                    add.type+="s"+dev.type.substring(6);
+                    let filt = filters.indexOf(devname+':onoff')>=0;
+                    add.items = [{
+                        "type":"r3",
+                        "remote":"onoff",
+                        "remotenick":"onoff",
+                        "idx":0,
+                        "device":devname,
+                        "devicenick":devnick,
+                        "filtered":filt,
+                        "default":false,
+                        "items":[
+                            {
+                                "type":"k3",
+                                "remote":"switchon",
+                                "remotenick":getTranslation("switchon",configuredLocale),
+                                "idx":0,
+                                "device":devname,
+                                "devicenick":devnick,
+                                "filtered":filt,
+                                "default":false,
+                                "items":null,
+                                "raw":""
+                            },
+                            {
+                                "type":"k3",
+                                "remote":"switchoff",
+                                "remotenick":getTranslation("switchoff",configuredLocale),
+                                "idx":1,
+                                "device":devname,
+                                "devicenick":devnick,
+                                "filtered":filt,
+                                "default":false,
+                                "items":null,
+                                "raw":""
+                            }
+                        ],
+                        "raw":""
+                    }];
+                }
+            }
+        });
+    }
+    console.log("[createTestDataBundle] "+JSON.stringify(devices));
+    return devices;
+}
+
+function createDeviceTable(obj,user) {
     var devices = {
         "remote":{},
         "switch":{},
@@ -662,7 +1004,9 @@ function createDeviceTable(obj,userData) {
     };
     var h;
     if (obj && obj.action && (h = obj.action.hosts)) {
-        console.log("[DeviceTable] Ecco 0 "+(typeof userData)+" "+userData);
+        //console.log("[DeviceTable] Ecco 0 "+(typeof userData)+" "+userData);
+        let filters = user.options.filters;
+        let configuredLocale = user.options.language;
         console.log("[DeviceTable] Ecco 1 "+JSON.stringify(Object.keys(h)));
         Object.keys(h).forEach(function (key) {
             if (h.hasOwnProperty(key)) {
@@ -670,6 +1014,7 @@ function createDeviceTable(obj,userData) {
                 var devname = key;
                 console.log("[DeviceTable] Ecco 2 "+devname+" "+dev.type);
                 if (dev.type=="DeviceCT10" || dev.type=="DeviceAllOne" || dev.type=="DeviceRM") {
+
                     var numDatas = {};
                     for (var i = 0; i<dev.dir.length; i++) {
                         var key = dev.dir[i];
@@ -677,20 +1022,23 @@ function createDeviceTable(obj,userData) {
                         var rn;
                         var kn;
                         var insert = true;
-                        if (kks.length>=2)
                             //console.log("[DeviceTable] Ecco 2.1 "+kks[0]+":"+kks[1]);
-                        if (kks.length>=2 &&
-                            userData.filters.indexOf(devname+":"+(rn = kks[0]))>=0) {
+                        if (kks.length>=2) {
                             //console.log("[DeviceTable] Ecco 2.2 "+kks[0]+":"+kks[1]+" "+JSON.stringify(devices));
-                            if (!devices.remote[rn]) {
+                            if (!devices.remote[rn = devname+':'+kks[0]]) {
                                 devices.remote[rn] = {
                                     "keys":[],
+                                    "keysraw":[],
+                                    "filtered": filters.indexOf(devname+":"+rn)>=0,
+                                    "remote": kks[0],
                                     "keysnick":[],
                                     "numData":null,
                                     "device":devname,
                                     "devicenick":getTranslation(devname,configuredLocale),
-                                    "remotenick":getTranslation(rn,configuredLocale),
-                                    "volumekeys":[]};
+                                    "remotenick":getTranslation(kks[0],configuredLocale),
+                                    "volumekeys":[],
+                                    "volumekeysraw":[]
+                                };
                                 numDatas[rn] = {};
                             }
                             kn = kks[1];
@@ -706,12 +1054,16 @@ function createDeviceTable(obj,userData) {
                                 m = remoteVolumeRegexp.exec(kn);
                                 if (m) {
                                     devices.remote[rn].volumekeys.push(kn);
+                                    if (kks.length>=3)
+                                        devices.remote[rn].volumekeysraw.push(kks[2]);
                                     insert = false;
                                 }
                             }
                             if (insert) {
                                 devices.remote[rn].keys.push(kn);
                                 devices.remote[rn].keysnick.push(getTranslation(kn,configuredLocale));
+                                if (kks.length>=3)
+                                    devices.remote[rn].keysraw.push(kks[2]);
                             }
                         }
                     }
@@ -736,32 +1088,41 @@ function createDeviceTable(obj,userData) {
                     for (var i = 0; i<dev.sh.length; i++) {
                         var key = dev.sh[i];
                         var kks = key.split(':');
-                        var kn;
-                        var shn = null;
-                        var lastremote = null;
-                        if (kks.length>=2 &&
-                            ((kn = kks[1]).charAt(0)=="@" || kn.charAt(0)=="$" ||
-                            userData.filters.indexOf(devname+":"+(lastremote = kn))>=0) &&
-                            typeof devices.sh[shn = kks[0].substr(1)]!="string") {
+                        if (kks.length>=2) {
+                            var shn = kks[0].substr(1),shkey = devname+':'+shn;
+                            var lastremote = kks.length>2?kks[1]:"";
+                            let shraw = '';
+                            let newfiltered = kks.length<=2 || filters.indexOf(devname+":"+lastremote)>=0;
+                            if (typeof devices.sh[shkey]!="undefined") {
+                                if (newfiltered)
+                                    newfiltered = devices.sh[shkey].filtered;
+                                shraw = devices.sh[shkey].shraw+'|';
+                                if (!lastremote.length)
+                                    lastremote = devices.sh[shkey].lastremote;
+                            }
+                            shraw+=key.substring(key.indexOf(':')+1);
                             var m = shChannelRegexp.exec(shn);
                             //console.log("[DeviceTable] Ecco 5 "+shn+ " "+m);
                             var shnick = m?
                                 getTranslation(m[2].replace(/_/g,' '),configuredLocale):
                                 getTranslation(shn,configuredLocale);
-                            devices.sh[shn] = {
+                            devices.sh[shkey] = {
                                 "device":devname,
+                                "filtered":newfiltered,
+                                "shraw":shraw,
                                 "lastremote":lastremote,
                                 "key":'@'+shn,
                                 "devicenick":getTranslation(devname,configuredLocale),
-                                "keynick":shnick};
+                                "keynick":shnick
+                            };
                         }
-                        else if (shn && devices.sh.hasOwnProperty(shn))
-                            devices.sh[shn] = "";
                     }
                 }
                 else if (dev.type=="DeviceS20") {
-                    if (userData.filters.indexOf(devname)>=0)
-                        devices.switch[devname] = true;
+                    devices.switch[devname] = {
+                        "filtered": filters.indexOf(devname)>=0,
+                        "devicenick": getTranslation(devname,configuredLocale)
+                    };
                 }
             }
         });
@@ -790,6 +1151,64 @@ function convertNumber(num,remoteObj) {
             return num.substr(1);
         else
             return num;
+    }
+}
+
+function manageRawChanges(uid,newraws) {
+    let ud,cli,resolve,reject;
+    let prom = new Promise(function(res0,rej0) {
+        resolve = res0;
+        reject = rej0;
+    });
+    let completed = [];
+    let arrprocess = Object.keys(newraws);
+    if (!arrprocess.length)
+        resolve(completed);
+    else if ((ud = DBData[uid]) && (cli = ud['client'])) {
+        let atleastOne = false;
+        let manageResult = function(n) {
+            if (n+1<arrprocess.length)
+                processRaw(n+1);
+            else if (atleastOne)
+                resolve(completed);
+            else
+                reject(completed);
+        }
+        let processRaw = function(n) {
+            let rawk = arrprocess[n];
+            let rawv = newraws[rawk];
+            let rev = /([^:]+):([^:]+):([^:]+)/.exec(rawk);
+            if (rev) {
+                let p1;
+                if (rev[3].charAt(0)=='@')
+                    p1 = rev[3];
+                else
+                    p1 = rev[2]+':'+rev[3];
+                cli.promise('editraw '+rev[1]+' '+p1+" "+rawv)
+                .then(function(out) {
+                    if (out.retval==1)
+                        atleastOne = true;
+                    completed.push({'key':rawk,'rv':out.retval});
+                    manageResult(n);
+                }).catch(function(out) {
+                    completed.push({'key':rawk,'rv':700});
+                    manageResult(n);
+                });
+            }
+            else
+                manageResult(n);
+        }
+        processRaw(0);
+    }
+    else
+        reject(null);
+}
+exports.manageRawChanges = manageRawChanges;
+
+function setSiteConnection(uid,conn) {
+    let ud,cli;
+    if ((ud = DBData[uid]) && (cli = ud['client'])) {
+        ud['conn'] = conn;
     }
 }
 
