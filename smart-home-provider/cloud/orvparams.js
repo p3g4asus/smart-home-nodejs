@@ -1,7 +1,7 @@
 const tcpclient = require('./tcpclient');
 const VERSION = "1.5";
 var redis_client = require("./redisconf");
-var User = require("./users");
+var Auth = require("./datastore").Auth;
 var translations = {};
 /*var translations = {
   "it": {
@@ -711,20 +711,23 @@ function configureModule(onAdd,onMod,onRemove,doAutoLogin) {
     exports.onMod = onMod;
     exports.onRemove = onRemove;
     let al = function() {
-        return User.loadAutoLoginUsers().then(function (users) {
+        return Auth.getAutologinUsers().then(function (users) {
             users.forEach(function(us) {
+                console.log("[ConfigureModule] Trying to autologin "+us.uid);
                 doAutoLogin(us.uid);
             });
         });
     }
-    loadTranslations().then(function(trans) {
+    return loadTranslations().then(function(trans) {
         translations = trans;
         console.log("[TRANS ok] "+JSON.stringify(trans));
-        return al();
+        if (doAutoLogin)
+            return al();
     }).catch(function(err) {
         translations = {"it": {},"en":{}};
         console.log("[TRANS fail] "+err);
-        return al();
+        if (doAutoLogin)
+            return al();
     });
 }
 exports.configureModule = configureModule;
@@ -755,7 +758,7 @@ function initUserDevices(user,test) {
         }
         else {
             cli.maxRetry = 3;
-            return cli.promise("deviced").then(function(obj) {
+            return cli.promise("devicedl").then(function(obj) {
                 try {
                     cli.disconnect();
                     let out = createTestDataBundle(obj.obj,user);

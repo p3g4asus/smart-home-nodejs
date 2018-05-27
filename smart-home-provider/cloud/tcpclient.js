@@ -26,6 +26,7 @@ var MFZClient = (function(){
         };
 
         that.onMsgNotReceived = function() {
+            console.log("[CLI onMsgNotReceived] calling disconnect timerping "+that.timerPing);
             that.timerPing = null;
             let oldretry = that.retry;
             that.disconnect();
@@ -52,6 +53,7 @@ var MFZClient = (function(){
                     that.currentPromise.resolve = resolve;
                     that.currentPromise.reject = reject;
                     that.currentPromise.timer = setTimeout(function() {
+                        console.log("[CLI PROM] calling disconnect");
                         that.disconnect();
                         that.currentPromise = null;
                         reject(that.id);
@@ -101,7 +103,9 @@ var MFZClient = (function(){
                     console.log('[TCPC] Connection closed');
                 if (!that.maxRetry || ++that.retry<that.maxRetry) {
                     console.log("[TCPC Err] R "+that.retry+"/"+that.maxRetry);
-                    setTimeout(that.connect, 5000);
+                    if (that.timerPing!==null)
+                        clearTimeout(that.timerPing);
+                    that.timerPing = setTimeout(that.connect, 5000);
                 }
                 else {
                     if (that.currentPromise) {
@@ -109,6 +113,7 @@ var MFZClient = (function(){
                         that.currentPromise.reject(that.id);
                         that.currentPromise = null;
                     }
+                    console.log("[CLI OnClose] Calling disconnect maxretry: "+that.maxRetry+" retry: "+that.retry+" force: "+f)
                     that.disconnect();
                 }
             }
@@ -182,7 +187,7 @@ var MFZClient = (function(){
                 that.tcpclient.connect(that.port, that.host, function() {
                     console.log('[TCPC] Connected');
                     fun = typeof fun === "undefined"?"devicedl":fun
-                    if (fun=="devicedl")
+                    if (fun.startsWith("devicedl"))
                         that.onMsgReceived(25);
                     that.writecmnd(fun);
                 });

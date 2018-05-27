@@ -30,47 +30,6 @@ Auth.getUid = function(request) {
 
 const SmartHomeModel = {};
 
-function genUid() {
-    let uid = Math.floor(Math.random() * 1000).toString();
-    while (authstore.users[uid]) {
-        uid = genUid();
-    }
-    return uid;
-}
-
-function genRandomString() {
-    return Math.floor(Math.random() * 10000000000000000000000000000000000000000).toString(36);
-}
-
-SmartHomeModel.genUser = function(username, password) {
-    let uid = genUid();
-    let token = genRandomString();
-
-    authstore.usernames[username] = uid;
-    authstore.users[uid] = {
-        uid: uid,
-        name: username,
-        password: password,
-        tokens: [token]
-    };
-    authstore.tokens[token] = {
-        uid: uid,
-        accessToken: token,
-        refreshToken: token
-    };
-};
-
-SmartHomeModel.generateAuthCode = function(uid, clientId) {
-    let authCode = genRandomString();
-    authstore.authcodes[authCode] = {
-        type: 'AUTH_CODE',
-        uid: uid,
-        clientId: clientId,
-        expiresAt: new Date(Date.now() + (60 * 10000))
-    };
-    return authCode;
-};
-
 SmartHomeModel.getAccessToken = function(code) {
     let authCode = authstore.authcodes[code];
     if (!authCode) {
@@ -182,7 +141,7 @@ Auth.registerAuth = function(app) {
         }
 
         console.log('login successful ', user.name);
-        authCode = SmartHomeModel.generateAuthCode(user.uid, client_id);
+        authCode = authstore.generateAuthCode(user.uid, client_id);
 
         if (authCode) {
             console.log('authCode successful ', authCode);
@@ -244,7 +203,7 @@ Auth.registerAuth = function(app) {
                 path = decodeURIComponent(path);
 
                 console.log('login successful ', user.name);
-                let authCode = SmartHomeModel.generateAuthCode(user.uid, req.body.client_id);
+                let authCode = authstore.generateAuthCode(user.uid, req.body.client_id);
 
                 if (authCode) {
                     console.log('authCode successful ', authCode);
@@ -410,7 +369,6 @@ function login(req, res) {
     });
 }
 
-exports.genRandomString = genRandomString;
 exports.registerAuth = Auth.registerAuth;
 exports.getAccessToken = Auth.getAccessToken;
 exports.getUid = Auth.getUid;

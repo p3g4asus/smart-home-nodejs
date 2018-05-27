@@ -1,0 +1,1655 @@
+<!--
+@license
+Copyright 2017, Google, Inc.
+Licensed under the Apache License, Version 2.0 (the 'License');
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an 'AS IS' BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, minimum-scale=1, initial-scale=1, user-scalable=yes">
+
+    <title>Smart Home Provider</title>
+    <meta name="description" content="Smart Home virtual devices">
+
+    <link rel="icon" href="images/favicon.ico">
+
+    <!-- See https://goo.gl/OOhYW5 for web app manifests -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- See https://goo.gl/qRE0vM for Chrome on Android theme-color attribute -->
+    <meta name="theme-color" content="#3f51b5">
+
+    <!-- Add to homescreen for Chrome on Android. Fallback for manifest.json -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Smart Home Gizmos">
+
+    <!-- Add to homescreen for Safari on iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Smart Home Gizmos">
+
+    <!-- Homescreen icons -->
+    <link rel="apple-touch-icon" href="images/manifest/icon-48x48.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="images/manifest/icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="96x96" href="images/manifest/icon-96x96.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="images/manifest/icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="images/manifest/icon-192x192.png">
+
+    <!-- Tile icon for Windows 8 (144x144 + tile color) -->
+    <meta name="msapplication-TileImage" content="images/manifest/icon-144x144.png">
+    <meta name="msapplication-TileColor" content="#3f51b5">
+    <meta name="msapplication-tap-highlight" content="no">
+
+    <!-- login -->
+    <meta name="google-signin-scope" content="profile email">
+    <script src="bower_components/webcomponentsjs/webcomponents-lite.js"></script>
+	<script src="bower_components/web-animations-js/web-animations.min.js"></script>
+	<!--<script src="/getauthcode"></script>-->
+    <script>
+        const SMART_HOME_PROVIDER_CLOUD_ENDPOINT = '/smart-home-api';
+
+        // Setup Polymer options
+        window.Polymer = {
+            dom: 'shadow',
+            lazyRegister: true
+        };
+
+        // Load webcomponentsjs polyfill if browser does not support native Web Components
+        /*(function() {
+            'use strict';
+
+            var onload = function() {
+                // For native Imports, manually fire WebComponentsReady so user code
+                // can use the same code path for native and polyfill'd imports.
+                if (!window.HTMLImports) {
+                    document.dispatchEvent(
+                        new CustomEvent('WebComponentsReady', {
+                            bubbles: true
+                        })
+                    );
+                }
+            };
+
+            var webComponentsSupported = (
+                'registerElement' in document &&
+                'import' in document.createElement('link') &&
+                'content' in document.createElement('template')
+            );
+
+            if (!webComponentsSupported) {
+                var script = document.createElement('script');
+                script.async = true;
+                script.src = 'bower_components/webcomponentsjs/webcomponents-lite.js';
+                script.onload = onload;
+                document.head.appendChild(script);
+            } else {
+                onload();
+            }
+        })();*/
+
+        // Load pre-caching Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('service-worker.js');
+            });
+        }
+    </script>
+
+    <link rel="import" href="bower_components/polymer/polymer.html">
+	<link rel="import" href="bower_components/polymer/polymer-element.html">
+    <link rel="import" href="bower_components/app-layout/app-header/app-header.html">
+    <link rel="import" href="bower_components/app-layout/app-scroll-effects/app-scroll-effects.html">
+    <link rel="import" href="bower_components/app-layout/app-toolbar/app-toolbar.html">
+    <link rel="import" href="bower_components/iron-form/iron-form.html">
+    <link rel="import" href="bower_components/iron-icon/iron-icon.html">
+    <link rel="import" href="bower_components/iron-icons/iron-icons.html">
+    <link rel="import" href="bower_components/iron-icons/communication-icons.html">
+    <link rel="import" href="bower_components/iron-icons/device-icons.html">
+    <link rel="import" href="bower_components/iron-icons/editor-icons.html">
+    <link rel="import" href="bower_components/iron-icons/social-icons.html">
+    <link rel="import" href="bower_components/iron-list/iron-list.html">
+    <link rel="import" href="bower_components/paper-dialog/paper-dialog.html">
+	<link rel="import" href="bower_components/neon-animation/web-animations.html">	
+    <link rel="import" href="bower_components/paper-input/paper-input.html">
+    <link rel="import" href="bower_components/paper-input/paper-textarea.html">
+    <link rel="import" href="bower_components/paper-checkbox/paper-checkbox.html">
+    <link rel="import" href="bower_components/paper-button/paper-button.html">
+    <link rel="import" href="bower_components/paper-listbox/paper-listbox.html">
+    <link rel="import" href="bower_components/paper-item/paper-item.html">
+    <link rel="import" href="bower_components/paper-item/paper-item-body.html">
+    <link rel="import" href="bower_components/paper-item/paper-icon-item.html">
+    <link rel="import" href="bower_components/paper-spinner/paper-spinner-lite.html">
+    <link rel="import" href="bower_components/paper-styles/color.html">
+    <link rel="import" href="bower_components/paper-icon-button/paper-icon-button.html">
+    <link rel="import" href="bower_components/paper-dropdown-menu/paper-dropdown-menu.html">
+    <link rel="import" href="bower_components/paper-icon-button/paper-icon-button.html">
+    <link rel="import" href="bower_components/paper-toast/paper-toast.html">
+	<link rel="import" href="bower_components/iron-flex-layout/iron-flex-layout-classes.html">
+    <link rel="import" href="bower_components/vaadin-form-layout/vaadin-form-layout.html">
+    <link rel="import" href="bower_components/vaadin-form-layout/vaadin-form-item.html">
+
+    <style>
+    body {
+        margin: 0;
+        font-family: 'Roboto', 'Noto', sans-serif;
+        line-height: 1.5;
+        min-height: 100vh;
+        background-color: #eeeeee;
+    }
+	</style>
+<dom-module id="shared-styles">
+	<template>
+		<style>
+		paper-button.custom {
+			--paper-button-ink-color: var(--paper-pink-a200);
+			/* These could also be individually defined for each of the
+				specific css classes, but we'll just do it once as an example */
+			--paper-button-flat-keyboard-focus: {
+				background-color: var(--paper-pink-a200);
+				color: white !important;
+			}
+			;
+			--paper-button-raised-keyboard-focus: {
+				background-color: var(--paper-pink-a200) !important;
+				color: white !important;
+			}
+			;
+		}
+
+		paper-button.custom:hover {
+			background-color: var(--paper-indigo-100);
+		}
+
+		paper-button.pink {
+			color: var(--paper-pink-a200);
+		}
+
+		paper-button.indigo {
+			background-color: var(--paper-indigo-500);
+			color: white;
+			--paper-button-raised-keyboard-focus: {
+				background-color: var(--paper-pink-a200) !important;
+				color: white !important;
+			}
+			;
+		}
+		paper-button[disabled] {
+			background-color: #eadbd8;
+			color: #4285f4;
+		}
+		vaadin-form-item.largespace * {
+			margin-bottom: .5em;
+		}
+		vaadin-form-item.midpace * {
+			margin-bottom: 2em;
+		}
+		</style>
+	</template>
+</dom-module>
+<dom-module id="remote-list">
+    <template>
+		<custom-style>
+			<style is="custom-style" include="shared-styles iron-flex iron-flex-alignment">
+				paper-listbox {
+					border: 1px solid #e5e5e5;
+				}
+				.avatar {
+					display: inline-block;
+					box-sizing: border-box;
+					width: 40px;
+					height: 40px;
+					border-radius: 50%;
+					background: var(--paper-amber-500);
+				}
+				.defaultclass {
+					color: var(--paper-yellow-a700);
+				}
+				
+				vaadin-form-item {
+					--vaadin-form-item-label-width: 0em;
+				}
+				
+				.baseclass:enabled {
+					color: black;
+				}
+				
+				.baseclass:disabled {
+					opacity: 0.65; 
+					cursor: not-allowed;
+				}
+				
+				vaadin-form-item {
+					--vaadin-form-item-row-spacing: 1em;
+				}
+				.scrollpane {
+					display:block;
+					height:15em;
+					overflow-y: auto;
+				}
+				
+				paper-textarea {
+				  display: block;
+				  width: 30em;
+				  --iron-autogrow-textarea: {
+					font-family: monospace;
+					font-size: .7em;
+				  };
+				}
+				paper-icon-button[hidden] {
+					display: none;
+				}
+				
+				paper-listbox[hidden] {
+					display: none;
+				}
+				
+				.hidden {
+					display: none;
+				}
+				
+				.padded-both {
+					padding-left: 10px;
+					padding-right: 10px;
+				}
+				
+				.padded-item {
+					padding-left: 5px;
+				}
+				
+				:host{
+					  --paper-input-container-input:{
+						max-height: 8em;
+					  }
+				}-toast
+				 
+				.error {
+					--paper-toast-background-color: var(--paper-red-900);
+					--paper-toast-color: white;
+				}
+				
+				.ok-toast {
+					--paper-toast-background-color: var(--paper-green-900);
+					--paper-toast-color: white;
+				}
+				
+				.warn-toast {
+					--paper-toast-background-color: var(--paper-yellow-900);
+					--paper-toast-color: black;
+				}
+				
+				.plain-toast {
+					
+				}
+			</style>
+		</custom-style>	
+		<vaadin-form-layout id="deviceslayout">
+			<vaadin-form-item colspan="3">
+				<div id="deviceslb-scroll" class$="scrollpane [[getDRKListClass(devicesList)]]">
+					<paper-listbox disabled=$[[disabled]] scroll-target="deviceslb-scroll" id="deviceslb" on-selected-changed="onDeviceSelected">
+						<dom-repeat items="{{devicesList}}">
+							<template>
+								<paper-icon-item>
+									<iron-icon slot="item-icon" icon="{{getDeviceIcon(item,item.type)}}"></iron-icon>
+									<paper-item-body two-line>
+										<div>{{item.devicenick}}</div>
+										<div secondary>{{item.device}}</div>
+									</paper-item-body>
+									<paper-icon-button on-click="setRenameDevice" class="baseclass" icon="editor:mode-edit"></paper-icon-button>
+									<paper-icon-button disabled$=[[getLearnKeyButtonDisabled(item,item.type,connected)]] on-click="setLearnKeyRemote" class="baseclass" icon="icons:lightbulb-outline"></paper-icon-button>
+								</paper-icon-item>
+							</template>
+						</dom-repeat>
+					</paper-listbox>
+				</div>
+			</vaadin-form-item>
+			<vaadin-form-item colspan="3">
+				<div id="remoteslb-scroll" class$="scrollpane [[getDRKListClass(remotesList)]]">
+					<paper-listbox disabled=$[[disabled]] id="remoteslb" scroll-target="remoteslb-scroll" on-selected-changed="onRemoteSelected">
+						<dom-repeat items="{{remotesList}}">
+							<template>
+								<paper-icon-item>
+									<div class="avatar" style$="{{getRemoteColor(item)}}" slot="item-icon"></div>
+									<paper-item-body two-line>
+										<div>{{item.remotenick}}</div>
+										<div secondary>{{item.remote}}</div>
+									</paper-item-body>
+									<paper-icon-button disabled$="[[getDefaultRemoteButtonDisabled(item,item.type)]]" on-click="setDefaultRemote" icon="icons:star" class$="{{getDefaultRemoteClass(item,item.default)}}"></paper-icon-button>
+									<paper-icon-button disabled$="[[getRenameRemoteButtonDisabled(item,item.type)]]" on-click="setRenameRemote" class="baseclass" icon="editor:mode-edit"></paper-icon-button>
+									<!-- icons:radio-button-unchecked / icons:radio-button-checked -->
+									<paper-icon-button disabled$="[[getSelectedRemoteButtonDisabled(item,item.type)]]" on-click="setSelectedRemote" class="baseclass" icon="{{getSelectedRemoteIcon(item,item.filtered)}}"></paper-icon-button>
+									<paper-icon-button disabled$=[[getLearnKeyButtonDisabled(item,item.type,connected)]] on-click="setLearnKeyRemote" class="baseclass" icon="icons:lightbulb-outline"></paper-icon-button>
+								</paper-icon-item>
+							</template>
+						</dom-repeat>
+					</paper-listbox>
+				</div>
+			</vaadin-form-item>
+			<paper-toast id="toastnotify" class=[[getMSGQuality(msgType)]] text="This toast is red and fits bottom!"></paper-toast>
+			<iron-ajax id="emitajax" reject-with-request="true" method="GET" handle-as="json" debounce-duration="300" url="/emitkey" headers="[[getAuthHeader('application/json',AUTH_TOKEN)]]"> </iron-ajax>
+			<vaadin-form-item colspan="3">
+				<div id="keyslb-scroll" class$="scrollpane [[getDRKListClass(keysList)]]">
+					<paper-listbox disabled=$[[disabled]] id="keyslb" scroll-target="keyslb-scroll">
+						<dom-repeat items="{{keysList}}">
+							<template>
+								<paper-icon-item>
+									<div class="avatar" style$="{{getRemoteColor(item)}}" slot="item-icon"></div>
+									<paper-item-body two-line>
+										<div>{{item.remotenick}}</div>
+										<div secondary>{{item.remote}}</div>
+									</paper-item-body>
+									<paper-icon-button disabled$=[[getLearnKeyButtonDisabled(item,item.type,connected)]] on-click="setLearnKeyRemote" class="baseclass" icon="icons:lightbulb-outline"></paper-icon-button>
+									<paper-icon-button disabled$=[[getEmitKeyButtonDisabled(item,item.type,connected)]] on-click="setEmitKeyRemote" class="baseclass" icon="icons:settings-input-antenna"></paper-icon-button>
+									<paper-icon-button class="baseclass" icon="{{getSelectedKeyIcon(item,item.filtered)}}"></paper-icon-button>
+									<paper-icon-button disabled$="[[getRenameKeyButtonDisabled(item,item.type)]]" on-click="setRenameKey" class="baseclass" icon="editor:mode-edit"></paper-icon-button>
+								</paper-icon-item>
+							</template>
+						</dom-repeat>
+					</paper-listbox>
+				</div>
+			</vaadin-form-item>
+			<!--<vaadin-form-item class="largespace" colspan="1">
+				<paper-input label="ID" value="{{itemRename.device}}/{{itemRename.remote}}" readonly=true placeholder="ID"></paper-input>
+				<paper-input label="Device Name" value={{itemRename.devicenick}} disabled$=[[getRenameDeviceInputDisabled(itemRename.idx,itemRename.type)]] id="devicename" placeholder="Device Name" required pattern="^[0-9a-zA-Z \-\+&]+$"></paper-input>
+				<paper-input label="Remote Name" value={{itemRename.remotenick}} disabled$=[[getRenameRemoteInputDisabled(itemRename.idx,itemRename.type)]] id="remotename" placeholder="Remote Name" required pattern="^[0-9a-zA-Z \-\+&]+$"></paper-input>
+				<paper-button class="custom indigo" id="applyrename" on-click="renameAll" disabled$=[[getRenameButtonDisabled(itemRename.idx,itemRename.type)]]>Rename</paper-button>
+			</vaadin-form-item>-->
+			<!--<vaadin-form-item colspan="2">
+				<div class="layout horizontal end">
+					<paper-textarea
+						class="flex"
+						rows="6"
+						max-rows="6"
+						placeholder="Raw"
+						readolnly=[[getRawKeyInputDisabled(itemRaw)]]
+						value="{{itemRaw.raw}}"></paper-textarea>
+
+					<paper-icon-button
+						icon="icons:check"
+						disabled$=[[getRawKeyInputDisabled(itemRaw)]]
+						on-tap="setRawKeyInputOK"></paper-icon-button>
+
+					<paper-icon-button
+						icon="icons:clear"
+						disabled$=[[getRawKeyInputDisabled(itemRaw)]]
+						on-tap="setRawKeyInputCancel"></paper-icon-button>
+				</div>
+			</vaadin-form-item>-->	
+		</vaadin-form-layout>
+		<paper-dialog class id="learndialog" modal>
+			<p class>Learn key with device [[deviceLearn.device]]/[[deviceLearn.devicenick]]</p>
+			<paper-dialog-scrollable class>
+				<paper-listbox disabled=$[[disabled]] id="learndialoglb">
+					<dom-repeat items="{{learnDialogList}}">
+						<template>
+							<paper-item>
+								<div class="layout horizontal end">
+									<paper-dropdown-menu colspan="2" class="padded-item" label="P1" id="learndialog-drop-p1">
+										<paper-listbox slot="dropdown-content" id="learndialog-drop-p1-list" attr-for-selected="value" selected="{{item.p1}}">
+											<template is="dom-repeat" items="{{learnDialogRemotesList}}" as="remote">
+												<paper-item value="{{remote.remote}}">{{remote.remote}}</paper-item>
+											</template>
+										</paper-listbox>
+									</paper-dropdown-menu>
+									<paper-input colspan="3" invalid=[[learnDialogGetP0InputInvalid(item.p0,item.p1,item.p2)]] disabled$=[[learnDialogGetP0InputDisabled(item.p0,item.p1,item.p2)]] class="padded-item" id="learndialog-input-p0" value="{{item.p0}}"></paper-input>
+									<paper-input colspan="3" invalid=[[learnDialogGetP2InputInvalid(item.p0,item.p1,item.p2)]] class="padded-item" id="learndialog-input-p2" value="{{item.p2}}"></paper-input>
+									<paper-icon-button class="baseclass" on-click="learnDialogRemoveLine" disabled$=[[learnDialogGetRemoveButtonDisabled(item.p0,item.p1,item.p2,item.last)]] icon="remove"></paper-icon-button>
+									<paper-icon-button class="baseclass" on-click="learnDialogAddLine" disabled$=[[learnDialogGetAddButtonDisabled(item.p0,item.p1,item.p2,item.last)]] hidden$=[[learnDialogGetAddButtonHidden(item.p0,item.p1,item.p2,item.last)]] icon="add"></paper-icon-button>
+								</div>
+							</paper-item>
+						</template>
+					</dom-repeat>
+				</paper-listbox>
+			</paper-dialog-scrollable>
+			<div class="buttons">
+				<paper-button class autofocus dialog-confirm>Tap me to close</paper-button>
+			</div>
+		</paper-dialog>
+		<paper-dialog class id="renamedialog" modal>
+			<p class>Rename {{itemRename.device}}/{{itemRename.remote}}</p>
+			<paper-dialog-scrollable class>
+				<div class="layout vertical end">
+					<paper-input class="padded-both" label=[[getRenameF1Label(itemRename.type)]] value={{itemRename.devicenick}} disabled$=[[getRenameDeviceInputDisabled(itemRename.idx,itemRename.type)]] id="devicename" placeholder="Device Name" required pattern="^[0-9a-zA-Z \-\+&]+$"></paper-input>
+					<paper-input class="padded-both" label=[[getRenameF2Label(itemRename.type)]] value={{itemRename.remotenick}} disabled$=[[getRenameRemoteInputDisabled(itemRename.idx,itemRename.type)]] id="remotename" placeholder="Remote Name" required pattern="^[0-9a-zA-Z \-\+&]+$"></paper-input>
+					<paper-button class="custom indigo" id="applyrename" on-click="renameAll" disabled$=[[getRenameButtonDisabled(itemRename.idx,itemRename.type)]]>Rename</paper-button>
+					<div class="layout horizontal end padded-both [[getRawDevClass(itemRename.type)]]">
+						<paper-textarea
+							class$="padded-both [[getRawDevClass(itemRename.type)]]"
+							rows="4"
+							max-rows="4"
+							placeholder="Raw"
+							readolnly=[[getRawKeyInputDisabled(itemRename.raw,itemRename.type)]]
+							value="{{itemRename.raw}}"></paper-textarea>
+
+						<!--editor:mode-edit icons:check-->
+						<paper-icon-button
+							class$="padded-both [[getRawDevClass(itemRename.type)]]"
+							icon="icons:check"
+							disabled$=[[getRawKeyInputDisabled(itemRename.raw,itemRename.type)]]
+							on-tap="setRawKeyInputOK"></paper-icon-button>
+
+						<paper-icon-button
+							class$="padded-both [[getRawDevClass(itemRename.type)]]"
+							icon="icons:clear"
+							disabled$=[[getRawKeyInputDisabled(itemRename.raw,itemRename.type)]]
+							on-tap="setRawKeyInputCancel"></paper-icon-button>
+					</div>
+				</div>
+			</paper-dialog-scrollable>
+			<div class="buttons">
+				<paper-button class autofocus dialog-confirm>Tap me to close</paper-button>
+			</div>
+		</paper-dialog>	
+    </template>
+</dom-module>
+
+<dom-module id="connection-form">
+	<template>
+		<custom-style>
+			<style is="custom-style" include="shared-styles iron-flex iron-flex-alignment">
+				app-header {
+					color: #fff;
+					background-color: #4285f4;
+				}
+	
+				app-header paper-icon-button {
+					--paper-icon-button-ink-color: white;
+				}
+	
+				.preferred {
+					color: yellow;
+				}
+	
+				paper-spinner-lite.orange {
+					--paper-spinner-color: var(--google-yellow-500);
+				}
+	
+				paper-checkbox.blue {
+					--paper-checkbox-checked-color: var(--paper-blue-500);
+					--paper-checkbox-checked-ink-color: var(--paper-blue-500);
+					--paper-checkbox-unchecked-color: var(--paper-blue-900);
+					--paper-checkbox-unchecked-ink-color: var(--paper-blue-900);
+					--paper-checkbox-label-color: var(--paper-blue-700);
+					--paper-checkbox-label-checked-color: var(--paper-blue-900);
+				}
+
+				paper-checkbox .title {
+					display: block;
+					font-size: 1.2em;
+				}
+				
+				vaadin-form-item {
+					--vaadin-form-item-row-spacing: 1em;
+				}
+			</style>
+		</custom-style>
+		<iron-ajax id="authcodeajax" reject-with-request="true" method="GET" handle-as="json" debounce-duration="300" url="/getauthcode" headers='{"Content-Type": "application/json", "Accept": "application/json"}'> </iron-ajax>
+		<iron-ajax id="optionsajax" reject-with-request="true" method="GET" handle-as="json" debounce-duration="300" url="/jsonoptions" headers="[[getAuthHeader('application/json',AUTH_TOKEN)]]"> </iron-ajax>
+		<iron-ajax id="submitajax" reject-with-request="true" method="POST" handle-as="json" debounce-duration="300" url="/jsonoptions" headers="[[getAuthHeader('application/json',AUTH_TOKEN)]]"> </iron-ajax>
+		<iron-form id="optionsform" allow-redirects="true" headers="[[getAuthHeader('application/json',AUTH_TOKEN)]]">
+			<form action='/jsonoptions' method='post' id="optionsforminner">
+				
+				<connection-validator name="host" pattern="^[A-Za-z0-9_\-\.]+$" 
+					error-message={{hostErrorMessage}} extern-error=[[connectionError]]></connection-validator>
+				<connection-validator name="port" pattern="65535" 
+					error-message={{portErrorMessage}} extern-error=[[connectionError]]></connection-validator>
+				<vaadin-form-layout id="connformlayout">
+					<vaadin-form-item colspan="3" style="--vaadin-form-item-label-width: 4em;">
+						<remote-list id="remotelist" uid="{{data.uid}} AUTH_TOKEN="{{AUTH_TOKEN}}" host="{{data.host}}" port="{{data.port}}" connected="{{data.connected}}" devices-list={{devicesList}}></remote-list>
+					</vaadin-form-item>
+					<vaadin-form-item colspan="2" label-position="top">
+						<label slot="label">OrvPy Connection</label>
+						<paper-input label="Host" error-message=[[hostErrorMessage]] value={{data.host}} id="host" placeholder="Host" validator="connection-validator-host"></paper-input>
+						<paper-input label="Port" error-message=[[portErrorMessage]] value={{data.port}} id="port" placeholder="Port" validator="connection-validator-port"></paper-input>
+					</vaadin-form-item>
+					
+					<vaadin-form-item class="largespace">
+						<paper-dropdown-menu label="Language" id="labelcombo">
+							<paper-listbox slot="dropdown-content" id="language" attr-for-selected="value" selected="{{data.language}}">
+								<paper-item value="it">it</paper-item>
+								<paper-item value="en">en</paper-item>
+							</paper-listbox>
+						</paper-dropdown-menu>
+						<br />
+						<paper-checkbox id="autologin" class="blue" checked="{{data.autologin}}">
+							<span class="title">Autologin</span>
+						</paper-checkbox>
+						<br />
+						<paper-button class="custom indigo" id="testbutton" on-click="testConnection">Test</paper-button>
+						<paper-spinner-lite class="orange" id="testspinner"></paper-spinner-lite>
+					</vaadin-form-item>
+					<vaadin-form-item>
+						<paper-button class="custom indigo" id="optionssubmit" on-click="submitform">Submit</paper-button>
+					</vaadin-form-item>
+				</vaadin-form-layout>
+			</form>
+		</iron-form>
+	</template>
+</dom-module>
+	
+	<script>
+	function getUrlParameters() {
+		// Get each parameter
+		let query = window.location.search.substr(1);
+		// Split each parameter into a key-value pair
+		let keyValues = query.split('&');
+		let parameterMap = new Map();
+		for (let i in keyValues) {
+			// Split into <key>=<value>
+			let param = keyValues[i];
+			let splitParam = param.split('=');
+			parameterMap.set(splitParam[0], splitParam[1]);
+		}
+		return parameterMap;
+	}
+HTMLImports.whenReady(() => {
+	
+	class ConnectionValidator extends Polymer.mixinBehaviors([Polymer.IronValidatorBehavior], Polymer.Element) {
+		static get is() {
+			return 'connection-validator';
+		}
+		static get properties() {
+			return {
+				pattern : {
+					type: String
+				},
+				name : {
+					type: String
+				},
+				errorMessage: {
+					type: String,
+					notify: true
+				},
+				oldresult: {
+					type: Number,
+					value: -1
+				},
+				externError: {
+					type: String,
+					value: ''
+				},
+				oldvalue: {
+					type: String,
+					value: null
+				}
+			}
+		}
+		ready() {
+			super.ready();
+
+			// Workaround https://github.com/PolymerElements/iron-validator-behavior/issues/30#issuecomment-305643574
+			new Polymer.IronMeta({
+				type: 'validator',
+				key: ConnectionValidator.is+"-"+this.name,
+				value: this
+			});
+		}
+
+		validate(value) {
+			console.log("AT1 " + this.externError + " ov " + this.oldvalue + " v " + value+" n "+this.name);
+			if (typeof value == "undefined")
+				return true;
+			
+			if (this.externError.length && (this.oldvalue == value || this.oldresult<0)) {
+				this.set('errorMessage',this.externError);
+				this.oldresult = 0;
+				return false;
+			} else if (this.oldvalue == value && this.oldresult>=0)
+				return this.oldresult>0;
+			this.set('externError',"");
+			this.oldvalue = value;
+			if (!value || value.length < 2) {
+				this.set('errorMessage',"Field should be at least 2 character long.");
+				this.oldresult = 0;
+				return false;
+			}
+			let isInt = -1;
+			if (/^[0-9]+$/.exec(this.pattern)) {
+				isInt = parseInt(this.pattern);
+				console.log("isint "+isInt);
+			}
+			if (isInt>0) {
+				let elem = -1;
+				if (/^[0-9]+$/.exec(value)) {
+					elem = parseInt(value);
+					console.log('elem '+elem);
+				}
+				if (elem<0 || elem>isInt) {
+					this.set('errorMessage', "Field should be from >0 && <="+isInt+".");
+					this.oldresult = 0;
+					return false;				
+				}
+			}
+			else {
+				let res = new RegExp(this.pattern).test(value);
+				if (!res) {
+					this.set('errorMessage', "Field should contain only digits, letters, dashes, dots or underscores.");
+					this.oldresult = 0;
+					return false;
+				}
+			}
+			this.oldresult = 1;
+			return true;
+		}
+	}
+	
+	/*class RemoteItem extends Polymer.Element {
+		static get is() {
+			return 'remote-item';
+		}
+		static get properties() {
+			return {
+				deflt: {
+					type: Boolean,
+					value: false
+				},
+				name: {
+					type: String
+				},
+				device: {
+					type: String
+				},
+				color: {
+					type: String
+				},
+				keys: {
+					type: Array,
+					value: []
+				}
+			}
+		}
+		constructor(nm,dev,col,ks,def) {
+			super();  
+			this.name = nm;
+			this.device = dev;
+			this.color = col;
+			this.keys = ks;
+			this.deflt = def;
+		}
+		ready() {
+			super.ready();
+			let pii = this.shadowRoot.querySelector('paper-icon-item');
+			//let pii = document.createElement('paper-icon-item');
+			let ic1 = document.createElement('div');
+			ic1.setAttribute('slot','item-icom');
+			ic1.className = "avatar";
+			//ic1.setAttribute('style','color: red;');
+			//ic1.setAttribute('style','background-color: var('+this.color+');');
+			let piidom = Polymer.dom(pii);
+			piidom.appendChild(ic1);
+			let pib = document.createElement('paper-item-body');
+			let pibdom = Polymer.dom(pib);
+			pib.setAttribute('two-line','');
+			let l1 = document.createElement('div');
+			l1.innerHTML = this.name;
+			let l2 = document.createElement('div');
+			l2.innerHTML = this.device;
+			l2.setAttribute('secondary','');
+			pibdom.appendChild(l1);
+			pibdom.appendChild(l2);
+			piidom.appendChild(pib);
+			let ic2 = document.createElement('paper-icon-button');
+			ic2.setAttribute('icon','star');
+			if (this.deflt)
+				ic2.className = 'defaultclass';
+			else
+				ic2.className = 'baseclass';
+			piidom.appendChild(ic2);
+		}
+
+	}
+	window.customElements.define(RemoteItem.is, RemoteItem);*/
+	class ConnectionForm extends Polymer.Element {
+		static get is() {
+			return 'connection-form';
+		}
+		static get properties() {
+			return {
+				data: {
+					type: Object,
+					value: {},
+					notify: true
+				},
+				hostErrorMessage: {
+					type: String
+				},
+				portErrorMessage: {
+					type: String
+				},
+				connectionError: {
+					type: String
+				},
+				devicesList: {
+					type: Array,
+					value: []
+				},
+				AUTH_TOKEN: {
+					type: String
+				},
+				USERNAME: {
+					type: String
+				}
+			}
+		}
+			
+		isRemoteSelectionInvalid(idx,type) {
+			return idx<0 || type=="s";
+		}
+		
+		isSelectionInvalid(idx,type) {
+			console.log("ISI "+idx);
+			return idx<0;
+		}
+		
+		isRenameImpossible(idx,type) {
+			return this.isSelectionInvalid(idx,type) || !this.$.devicename.validate() || 
+				(type=='r' && (this.isRemoteSelectionInvalid(idx,type) || !this.$.remotename.validate()));
+		}
+		
+		getAuthHeader(mime,dependency) {
+			let header = {"Content-Type": mime, "Accept": mime, "Authorization": "Bearer "+this.AUTH_TOKEN};
+			//console.log("new header "+JSON.stringify(header));
+			return header;
+		}
+		
+		nameValidate(event) {
+			/*let dom = this.$;
+			let v1 = dom.devicename.validate(),
+				v2 = dom.remotename.validate();*/
+			this.$.applyrename.disabled = this.isRenameImpossible(this.myselected);
+		}
+		
+		submitform(event) {
+			let dom = this.$;
+			let that = this;
+			const testbutton = dom.testbutton;
+			const spinner = dom.testspinner;
+			const optionssubmit = dom.optionssubmit;
+			dom.submitajax.set('body', {
+				'user': this.data,
+				'actions': dom.remotelist.actions
+			});
+			let request = this.$.submitajax.generateRequest();
+			return request.completes.then(function(req) {
+				const resp = req.response;
+				console.log("[getauthcode] request ok");
+				console.log(resp);
+				spinner.active = false;
+				spinner.hidden = true;
+				testbutton.disabled = false;
+				optionssubmit.disabled = false;
+				dom.remotelist.disable(false);
+				//console.log(typeof resp);
+				//eval(resp+'');
+				
+				return resp/*{
+					"AUTH_TOKEN":AUTH_TOKEN,
+					"USERNAME":USERNAME
+				}*/;
+			}).catch(function(err) {
+				spinner.active = false;
+				spinner.hidden = true;
+				dom.remotelist.disable(false);
+				that.checkErrRedir(err);
+			});
+		}
+		
+		checkErrRedir(err) {
+			console.log(err);
+			let loc = err.request.xhr.response && err.request.xhr.response.redir?err.request.xhr.response.redir:'/login';
+			window.location = loc;
+			window.history.pushState({}, null, loc);
+			window.dispatchEvent(new CustomEvent('location-changed'));
+		}
+
+		ready() {
+			super.ready();
+			this.connectionError = "";
+			//this.nameValidate();
+			//let testList = [
+				//{"idx":0,"devicenick":"fagiolo","remotenick":"sammy","name":"samsung","filtered":true,"device":"blackbeam1","default":true,"keys":[],"shs":[],"type":"r"},
+				//{"idx":1,"devicenick":"fagiolo","remotenick":"murdoch","name":"sky","filtered":false,"device":"blackbeam1","default":false,"keys":[],"shs":[],"type":"r"}
+			//];
+			let dom = this.$;
+			let that = this;
+			let suf = dom.optionsform;
+			let cl = function(event) {
+				let v1 = dom.host.validate(),
+					v2 = dom.port.validate();
+				dom.optionssubmit.disabled = !(v1 && v2);
+			}
+			dom.host.addEventListener('input', cl);
+			dom.port.addEventListener('input', cl);
+			suf.addEventListener('change', cl);
+
+			suf.addEventListener('iron-form-submit', function(event) {
+				dom.testspinner.active = false;
+				dom.testspinner.hidden = true;
+				dom.optionssubmit.disabled = false;
+				console.log("DETAIL ");
+				console.log(event.detail);
+			});
+			
+			suf.addEventListener('iron-form-presubmit', function() {
+				//this.request.method = 'put';
+				this.request.body['user'] = that.data;
+				this.request.body['actions'] = that.$.remotelist.actions;
+			});
+
+			suf.addEventListener('iron-form-response', function(e) {
+				const response = e.detail.response;
+				//document.querySelector('.output').innerHTML = JSON.stringify(response, null, 2);
+				console.log("RESP "+JSON.stringify(response, null, 2));
+			});
+			dom.connformlayout.responsiveSteps = [
+				{minWidth: 0, columns: 1, labelsPosition: 'top'},
+				{minWidth: '20em', columns: 3}
+			];
+			this.getAuthCode().then(function(datas) {
+				that.set('AUTH_TOKEN',datas.AUTH_TOKEN);
+				that.set('USERNAME',datas.USERNAME);
+				console.log("getAuthCode OK "+JSON.stringify(datas))
+				that.testConnection();
+			}).catch(function (err) {
+				console.log("[getauthcode] error");
+				that.set('connectionError', "Auth Code request failed with code "+err.request.xhr.status);
+				dom.optionsform.fire('change');
+				that.checkErrRedir(err);
+			});
+		}
+		getAuthCode() {
+			let dom = this.$;
+			const testbutton = dom.testbutton;
+			const spinner = dom.testspinner;
+			const optionssubmit = dom.optionssubmit;
+			spinner.active = true;
+			spinner.hidden = false;
+			dom.remotelist.disable(true);
+			testbutton.disabled = true;
+			optionssubmit.disabled = true;
+			let params = getUrlParameters();
+			dom.authcodeajax.set('params', {
+				"code": params.get('code'),
+				"json": 1,
+				"redirect_uri": '/options'
+			});
+			let request = dom.authcodeajax.generateRequest();
+			return request.completes.then(function(req) {
+				const resp = req.response;
+				console.log("[getauthcode] request ok");
+				console.log(resp);
+				if (!resp)
+					throw {"request": {"xhr": {"status": 1500}}};
+				spinner.active = false;
+				spinner.hidden = true;
+				testbutton.disabled = false;
+				optionssubmit.disabled = false;
+				dom.remotelist.disable(false);
+				//console.log(typeof resp);
+				//eval(resp+'');
+				
+				return resp/*{
+					"AUTH_TOKEN":AUTH_TOKEN,
+					"USERNAME":USERNAME
+				}*/;
+			}).catch(function(err) {
+				spinner.active = false;
+				spinner.hidden = true;
+				dom.remotelist.disable(false);
+				throw err;
+			});
+		}
+		
+		setDataProperty(us) {
+			this.set('data.host',us.options.orvhost);
+			this.set('data.connected',us.connected);
+			this.set('data.uid',us.uid);
+			this.set('data.id',us._id);
+			this.set('data.username',us.username);
+			this.set('data.port',us.options.orvport);
+			this.set('data.autologin',us.options.autologin);
+			this.set('data.language',us.options.language);
+		}
+		setdevicesList(rList) {
+			this.set('devicesList',rList);
+		}
+		
+		testConnection(event) {
+			const mainel = this;
+			const dom = mainel.$;
+			const optionsform = dom.optionsform;
+			const testbutton = dom.testbutton;
+			const spinner = dom.testspinner;
+			const optionssubmit = dom.optionssubmit;
+			spinner.active = true;
+			spinner.hidden = false;
+			testbutton.disabled = true;
+			optionssubmit.disabled = true;
+			dom.remotelist.disable(true);
+			dom.host.disabled = true;
+			dom.port.disabled = true;
+			if (mainel.data['port']) {
+				dom.optionsajax.set('params', {
+					"host": mainel.data.host,
+					"port": mainel.data.port
+				});
+			}
+			console.log("[testcon] testing connection");
+			let request = dom.optionsajax.generateRequest();
+			request.completes.then(function(req) {
+				const resp = req.response;
+				console.log("jsonoptions request ok");
+				console.log(resp);
+				optionssubmit.disabled = false;
+				//mainel.submit();
+				spinner.active = false;
+				testbutton.disabled = false;
+				dom.host.disabled = false;
+				dom.port.disabled = false;
+				dom.remotelist.disable(false);
+				let us;
+				if (req.xhr.response && (us = req.xhr.response.user)) {
+					mainel.setDataProperty(us);
+					if (us.connected)
+						dom.remotelist.createSiteConnection();
+				}
+				mainel.setdevicesList(req.xhr.response.devices);
+			}, function(rejected) {
+				console.log("[Rejected req]");
+				let req = rejected.request;
+				let error = rejected.error;
+				let us;
+				console.log(rejected);
+				mainel.set('connectionError', "Request failed with code " + req.xhr.status);
+				if (req.xhr.response && (us = req.xhr.response.user)) {
+					console.log(JSON.stringify(us));
+					mainel.setDataProperty(us);
+					if (us.connected)
+						dom.remotelist.createSiteConnection();
+				}
+				optionsform.fire('change');
+				spinner.active = false;
+				testbutton.disabled = false;
+				dom.host.disabled = false;
+				dom.port.disabled = false;
+				dom.remotelist.disable(false);
+				//signupform.querySelector('.output').innerHTML = errorMessage;
+			});
+		}
+		/*submit() {
+			let params = getUrlParameters();
+			this.shadowRoot.querySelector('[name="redirect_uri"]').value = params.get('redirect_uri');
+			this.shadowRoot.querySelector('[name="client_id"]').value = params.get('client_id');
+			this.shadowRoot.querySelector('[name="redirect_uri"]').value = params.get('redirect_uri');
+			this.shadowRoot.querySelector('[name="state"]').value = params.get('state');
+			this.shadowRoot.querySelector('[name="username"]').value = this.shadowRoot.querySelector('paper-input[name="paper_username"]').value;
+			this.shadowRoot.querySelector('[name="password"]').value = this.shadowRoot.querySelector('paper-input[name="paper_password"]').value;
+			this.$.optionsforminner.submit();
+		}*/
+	}	
+	class RemoteList extends Polymer.Element {
+		static get is() {
+			return 'remote-list';
+		}
+
+		static get properties() {
+			return {
+				remotesList: {
+					type: Array,
+					value: [],
+					notify: true
+				},
+				deviceLearn: {
+					type: Object,
+					value: {"device":"","remote":"","devicenick":"","remotenick":"","idx":-1,"type":""}
+				},
+				learnDialogList: {
+					type: Array,
+					value: [{'idx':0,'p0':'','p1':'','p2':'','last':true}]
+				},
+				learnDialogRemotesList: {
+					type: Array,
+					value: []
+				},
+				devicesList: {
+					type: Array,
+					value: [],
+					notify: true
+				},
+				keysList: {
+					type: Array,
+					value: [],
+					notify: true
+				},
+				itemRename: {
+					type: Object,
+					value: {"device":"","remote":"","devicenick":"","remotenick":"","idx":-1,"type":"","raw":""},
+					notify: true
+				},
+				itemRaw: {
+					type: Object,
+					value: {'raw':'','idx':-1,'remote':'','device':'','remotenick':'','devicenick':''},
+					notify: true
+				},
+				currentES: {
+					type: Object,
+					value: null
+				},
+				disabled: {
+					type: Boolean,
+					value: false
+				},
+				connected: {
+					type: Boolean,
+					value: false
+				},
+				host: {
+					type: String,
+					value: 'localhost'
+				},
+				port: {
+					type: String,
+					value: '10001'
+				},
+				uid : {
+					type: String,
+					value: null
+				},
+				actions: {
+					type: Object,
+					value: {"renames":{},"raw":{},"filtered":{},"default":""}
+				},
+				AUTH_TOKEN: {
+					type: String,
+					value: ''
+				},
+				working: {
+					type: Boolean,
+					value: false,
+					notify: true
+				},
+				COLORS: {
+					type: Array,
+					readOnly: true,
+					value: [
+						'--paper-red-300',
+						'--paper-pink-100',
+						'--paper-purple-200',
+						'--paper-indigo-300',
+						'--paper-blue-400',
+						'--paper-light-blue-500',
+						'--paper-cyan-500',
+						'--paper-teal-a100',
+						'--paper-green-600',
+						'--paper-light-green-600',
+						'--paper-lime-400',
+						'--paper-yellow-700',
+						'--paper-amber-600',
+						'--paper-orange-700',
+						'--paper-brown-500',
+						'--paper-grey-500',
+						'--paper-deep-orange-400',
+						'--paper-deep-purple-800'
+					]
+				}
+			}
+		}
+		
+		createToast(style,msg,time) {
+			let to = this.$.toastnotify;
+			to.classList.remove('ok-toast');
+			to.classList.remove('warn-toast');
+			to.classList.remove('error-toast');
+			to.classList.remove('plain-toast');
+			to.classList.add(style+'-toast');
+			to.duration = time*1000;
+			to.open();
+		}
+		
+		manageES(detail) {
+			let msg = detail.data.msg;
+			let data = detail.data.pld;
+			let str = '';
+			let tt = 5;
+			if (msg=='conmsg') {
+				str = data;
+			}
+			else {
+				let a = data.action;
+				let devn = "N/A [N/A]";
+				if (a.device && a.device.name && a.device.name.length) {
+					devn = a.device.name+" ["+(a.device.type && a.device.type.length>6?a.device.type.substring(6):"N/A")+"]";
+				}
+				let cl = a.actionclass;
+				if (cl=="ActionLearnir") {
+					str = "Device "+devn+" learning key(s) "+JSON.stringify(a.irname);
+				}
+				else if (cl=="ActionIrask") {
+					str = "Please press "+a.irname+" towards "+devn+" in 10 seconds.";
+					tt = 7;
+				}
+				else if (cl=="ActionEmitir") {
+					str = "Device "+devn+" emitting key(s) "+JSON.stringify(a.irname);
+				}
+				else if (cl.startsWith("ActionState")) {
+					str = "Device "+devn+" switching "+(a.state?"on":"off");
+				}
+				else if (cl=="ActionPing")
+					str = '';
+				else if (cl=="ActionCreatesh") {
+					str = "Device "+devn+" "+(a.irname.length?"creating":"deleting")+" shortcut "+a.shname;
+				}
+				else if (cl=="ActionDiscovery" || cl=="ActionGetinfo" || cl=="ActionDevicedl") {
+					let o = cl!="ActionGetinfo"?a.hosts:a.discovery;
+					let lstdev = [];
+					Object.keys(o).forEach(function(key) {
+						let d = o[key];
+						lstdev.push(d.name+" ["+d.type.substring(6)+"/"+key+"]");
+					});
+					str = "Discovred "+lstdev.length+" devices: "+JSON.stringify(lstdev);
+				}
+				else
+					str = "Action "+cl.substring(6)+" executed by device "+devn;
+				
+			}
+			let tstyle = '';
+			if (data.retval==1)
+				tstyle = 'ok';
+			else if (data.retval==null)
+				tstyle = 'error';
+			else if (data.retval>1)
+				tstyle = 'warn';
+			else
+				tstyle = 'plain';
+			if (str.length) {
+				this.createToast(tstyle,str,tt);
+			}
+		}
+		
+		createSiteConnection() {
+			if (!this.currentES) {
+				this.currentES = new EventSource('/siteconnection/:'+this.uid);
+				this.currentES.addEventListener('orvmsg',this.manageES.bind(this));
+				this.currentES.addEventListener('connmsg',this.manageES.bind(this));
+				this.currentES.onerror = (function(e) {
+					this.createToast('error', 'Error in ite connection: retrying',5);
+					setTimeout(this.createSiteConnection.bind(this),10000);
+				}).bind(this);
+			}
+		}
+		
+		learnDialogGetP2InputInvalid(p0,p1,p2) {
+			return p2.length==0 || !/^[a-zA-Z0-9\+\-_]+$/.exec(p2);
+		}
+		
+		learnDialogGetP0InputInvalid(p0,p1,p2) {
+			return !this.learnDialogGetP0InputDisabled(p0,p1,p2) && this.learnDialogGetP2InputInvalid(p0,p1,p0);
+		}
+		
+		learnDialogGetP0InputDisabled(p0,p1,p2) {
+			return p1!='new';
+		}
+		
+		learnDialogGetAddButtonDisabled(p0,p1,p2,last) {
+			return this.learnDialogGetP2InputInvalid(p0,p1,p2) || this.learnDialogGetP0InputInvalid(p0,p1,p2) || !p1 || p1.length==0;
+		}
+		
+		learnDialogGetAddButtonHidden(p0,p1,p2,last) {
+			return !last;
+		}
+		
+		learnDialogRemoveLine(event) {
+			let el = event.model.item;
+			if (el.last) {
+				this.set('learnDialogList.'+(this.learnDialogList.length-2)+'.last' ,true);
+			}
+			this.splice('learnDialogList',el.idx,1);
+			this.learnDialogList.forEach(function(it,idx) {
+				it.idx = idx;
+			});
+		}
+		
+		learnDialogGetRemoveButtonDisabled(p0,p1,p2,last) {
+			return this.learnDialogList.length==1;
+		}
+		
+		
+		learnDialogAddLine(event) {
+			let fromv = this.learnDialogList[this.learnDialogList.length-1];
+			this.push('learnDialogList',{'p0':fromv.p0,'p1':fromv.p1,'p2':'','idx':fromv.idx+1,'last':true});
+			this.set('learnDialogList.'+(this.learnDialogList.length-2)+'.last' ,false);
+		}
+		
+		disable(v) {
+			console.log("remotelist disabled "+v);
+			this.set('disabled',v);
+		}
+		
+		setWorking(v) {
+			console.log("remotelist disabled "+v);
+			this.set('working',v);
+			this.set('disabled',v);
+		}
+		
+		getAuthHeader(mime,dependency) {
+			let header = {"Content-Type": mime, "Accept": mime, "Authorization": "Bearer "+this.AUTH_TOKEN};
+			//console.log("new header "+JSON.stringify(header));
+			return header;
+		}
+		
+		getRemoteColor(item) {
+			//console.log("getRemoteColor "+JSON.stringify(item));
+			return "background-color: var("+this.COLORS[item.idx%this.COLORS.length]+");";
+		}
+		
+		getDefaultRemoteClass(item,def) {
+			//console.log("getDefaultRemoteClass "+JSON.stringify(item));
+			return item.default?"defaultclass":"baseclass";
+		}
+		
+		getDefaultRemoteButtonDisabled(item,type) {
+			return item.type!="r1" || this.disabled;
+		}
+		
+		getRenameRemoteButtonDisabled(item,type) {
+			return item.type!="r1" || this.disabled;
+		}
+		
+		getRenameKeyButtonDisabled(item,type) {
+			return this.disabled;
+		}
+		
+		getRenameDeviceInputDisabled(idx,type) {
+			return type.length==0 || this.disabled;
+		}
+		
+		getRenameRemoteInputDisabled(idx,type) {
+			return type.length==0 || type.charAt(0)=="d" || type=="r2" || type=="r3" || this.disabled;
+		}
+		
+		getRenameF1Label(tp) {
+			if (tp.startsWith("d") || tp.startsWith("r") || tp=="k3")
+				return "Device Name";
+			else
+				return "Remote Name";
+		}
+		
+		getRenameF2Label(tp) {
+			if (tp.startsWith("d") || tp.startsWith("r"))
+				return "Remote Name";
+			else if (tp=="k3")
+				return "Action Name";
+			else
+				return "Key Name";
+		}
+		
+		getRenameButtonDisabled(idx,type) {
+			if (this.getRenameRemoteInputDisabled(idx,type)) {
+				console.log("RBD 1");
+				return this.disabled || this.getRenameDeviceInputDisabled(idx,type) || !this.$.devicename.validate();
+			}
+			else {
+				console.log("RBD 2");
+				return this.disabled || !this.$.devicename.validate() || !this.$.remotename.validate();
+			}
+		}
+		
+		getSelectedRemoteButtonDisabled(item,type) {
+			return item.type=="r2" || this.disabled;
+		}
+		
+		setDefaultRemote(event) {
+			let el = event.model.item;
+			if (!el.default) {
+				let that = this;
+				that.devicesList.some(function(dev) {
+					if (dev.items) {
+						return dev.items.some(function(rem) {
+							if (rem.default) {
+								if (dev.items!=that.remotesList)
+									rem.default = false;
+								else
+									this.set('remotesList.'+rem.idx+'.default', false);
+								return true;
+							}
+							else
+								return false;
+						});
+					}
+					else
+						return false;
+				});
+				let remelem = that.remotesList[el.idx];
+				this.set('remotesList.'+el.idx+'.default', true);
+				that.actions.default = remelem.device+':'+remelem.remote;
+			}
+		}
+		
+		setItemRename(event) {
+			let el = event.model.item;
+			this.set('itemRename.devicenick',el.devicenick);
+			this.set('itemRename.remotenick',el.remotenick);
+			this.set('itemRename.device',el.device);
+			this.set('itemRename.remote',el.remote);
+			this.set('itemRename.idx',el.idx);
+			this.set('itemRename.type',el.type);
+			this.set('itemRename.raw',el.raw);
+			//console.log(event.composedPath()[0]);
+			//console.log(event.target);
+			this.$.renamedialog.positionTarget = event.composedPath()[0];
+			this.$.renamedialog.open();
+		}
+		
+		onDeviceSelected(event) {
+			let sel = this.$.deviceslb.selected;
+			this.$.keyslb.selected = 0;
+			this.$.remoteslb.selected = 0;
+			this.set('keysList',[]);			
+			if (sel>=0 && sel<this.devicesList.length) {
+				this.set('remotesList',this.devicesList[sel].items);
+				this.onRemoteSelected(null);
+			}
+			else {
+				this.set('remotesList',[]);
+			}
+		}
+		
+		onRemoteSelected(event) {
+			let sel = this.$.remoteslb.selected;
+			console.log("Changesel remote "+sel);
+			this.$.keyslb.selected = 0;
+			if (sel>=0 && sel<this.remotesList.length) {
+				this.set('keysList',this.remotesList[sel].items);
+				this.onKeySelected(null);
+			}
+			else {
+				this.set('keysList',[]);
+			}
+		}
+		
+		onKeySelected(event) {
+			let sel = this.$.keyslb.selected;
+			console.log("Changesel key "+sel);
+			if (this.keysList && sel>=0 && sel<this.keysList.length) {
+				this.set('itemRaw',Object.assign({},this.keysList[sel]));
+			}
+			else {
+				this.set('itemRaw',{'raw':'','idx':-1,'remote':'','device':'','remotenick':'','devicenick':''});
+			}
+		}
+		
+		getRawDevClass(tp) {
+			return (tp!="k1" && tp!="k2")?"hidden":"";
+		}
+		
+		setRawKeyInputOK(event) {
+			let idx = this.itemRename.idx;
+			if (idx>=0 && idx<this.keysList.length) {
+				this.keysList[idx].raw = this.itemRename.raw;
+				let key = this.remotesList[this.$.remoteslb.selected].device+':'+
+					this.itemRename.device+':'+
+					this.itemRename.remote;
+				this.actions.raw[key] = this.itemRename.raw;
+				console.log("Action inserted: "+key);
+			}
+		}
+		
+		setRawKeyInputCancel(event) {
+			let idx = this.itemRename.idx;
+			if (idx>=0 && idx<this.keysList.length) {
+				this.set('itemRename.raw',this.keysList[idx].raw);
+			}
+		}
+		
+		getRawKeyInputDisabled(raw,type) {
+			return raw && raw.length && /[^0-9,]/.exec(raw) && type=="k1";
+		}
+		
+		setRenameDevice(event) {
+			this.setItemRename(event);
+		}
+		
+		setRenameRemote(event) {
+			this.setItemRename(event);
+		}
+		
+		setRenameKey(event) {
+			this.setItemRename(event);
+		}
+		
+		getLearnKeyButtonDisabled(item,type,connected) {
+			return !connected || (!type.startsWith("dr") && type!="r1" && type!="r2" && type!="k1" && type!="k2");
+		}
+		
+		getEmitKeyButtonDisabled(item,type,connected) {
+			return !connected || (type!="k3" && type!="k1" && type!="k2");
+		}
+		
+		setLearnKeyRemote(event) {
+			let el = event.model.item;
+			if (el.type=="r2" || el.type=="k2")
+				return;
+			if (this.learnDialogList.length>1) {
+				this.splice('learnDialogList',1,learnDialogList.length-1);
+			}
+			this.set('learnDialogList.0.last',true);
+			this.set('learnDialogList.0.idx',0);
+			this.set('learnDialogList.0.p0','');
+			this.set('learnDialogList.0.p1','');
+			this.set('learnDialogList.0.p2','');
+			let reml,rems;
+			if (el.type.charAt(0)=="d") {
+				this.set('deviceLearn',el);
+				reml = el.items.slice(0);
+				rems = reml[0].remote;
+			}
+			else {
+				this.set('deviceLearn',this.devicesList[this.$.deviceslb.selected]);
+				reml = this.remotesList.slice(0);
+				rems = this.remotesList[el.idx].remote;
+				if (el.type.charAt(0)=="k")
+					this.set('learnDialogList.0.p2',el.remote);
+			}
+			reml.push({'raw':'','idx':reml.length,'remote':'new','device':this.deviceLearn.device,'remotenick':'new','devicenick':this.deviceLearn.devicenick});
+			this.set('learnDialogRemotesList',reml);
+			this.set('learnDialogList.0.p1',rems);
+			this.$.learndialog.open();
+		}
+		
+		setEmitKeyRemote(event) {
+			if (this.uid && this.currentES) {
+				let el = event.model.item;
+				let dom = this.$;
+				let mainel = this;
+				dom.emitajax.set('params', {
+					"device": mainel.devicesList[dom.deviceslb.selected].device,
+					"remote": mainel.remotesList[dom.remoteslb.selected].remote,
+					"key":el.remote,
+					"host":mainel.host,
+					"host":mainel.port
+				});
+				console.log("[testcon] testing connection");
+				mainel.setWorking(true);
+				let request = dom.emitajax.generateRequest();
+				request.completes.then(function(req) {
+					const resp = req.response;
+					console.log("jsonoptions request ok");
+					console.log(resp);
+					mainel.setWorking(false);
+				}, function(rejected) {
+					console.log("[Rejected req]");
+					let req = rejected.request;
+					let error = rejected.error;
+					console.log(rejected);
+					mainel.setWorking(false);
+					//signupform.querySelector('.output').innerHTML = errorMessage;
+				});
+			}
+		}
+		
+		getDRKListClass(lst) {
+			return !lst || !lst.length?"hidden":"";
+		}
+		
+		getDeviceIcon(item,tp) {
+			if (tp.startsWith("ds"))
+				return "device:usb";
+			else if (tp.startsWith("dr"))
+				return "icons:settings-remote";
+		}
+		
+		setSelectedRemote(event) {
+			let el = event.model.item;
+			let v = !el.filtered;
+			let that = this;
+			let remsel = that.remotesList[el.idx];
+			that.set('remotesList.'+el.idx+'.filtered', v);
+			that.actions.filtered[remsel.device+':'+remsel.remote] = v;
+			that.remotesList[el.idx].items.forEach(function(key) {
+				if (that.keysList==that.remotesList[el.idx].items)
+					that.set('keysList.'+key.idx+'.filtered', v);
+				else
+					key.filtered = v;
+			});
+			if (remsel.type!="r3") {
+				let shofdevice = that.remotesList[that.remotesList.length-1].items;
+				shofdevice.forEach(function(sh,idx) {
+					sh.filtered = true;
+					Object.keys(sh.items).some(function(foundremote) {
+						for (let i = 0; i<that.remotesList.length-1; i++) {
+							let rem = that.remotesList[i];
+							if (rem.remote==foundremote) {
+								if (!rem.filtered)
+									sh.filtered = false;
+								break;
+							}
+						}
+						return !sh.filtered;
+					});
+					if (that.keysList==shofdevice)
+						that.set('keysList.'+idx+'.filtered', sh.filtered);
+				});
+			}
+		}
+		
+		getSelectedRemoteIcon(item,filtered) {
+			return "icons:radio-button-"+(filtered?"":"un")+"checked";
+		}
+		
+		getSelectedKeyIcon(item,filtered) {
+			return this.getSelectedRemoteIcon(item,filtered);
+		}
+		
+		renameAll() {
+			let idx = this.itemRename.idx;
+			if (idx>=0) {
+				let orig = null;
+				if (itemRename.type.startsWith('d'))
+					orig = this.devicesList[idx];
+				else if (itemRename.type.startsWith('r'))
+					orig = this.remotesList[idx];
+				else if (itemRename.type.startsWith('k'))
+					orig = this.keysList[idx];
+				if (orig) {
+					let that = this;
+					let performRename = function(nmfrom,nmnick,lst,lstname) {
+						lst.forEach(function (el,i) {
+							if (el.device==nmfrom) {
+								if (lstname.length)
+									that.set(lstname+'.'+i+'.devicenick', nmnick);
+								else
+									el.devicenick = nmnick;
+							}
+							if (el.remote==nmfrom) {
+								if (lstname.length)
+									that.set(lstname+'.'+i+'.remotenick', nmnick);
+								else
+									el.remotenick = nmnick;
+							}
+						});
+					}
+					let lstRename = [
+						{"lst":that.devicesList,"lstname":"devicesList"},
+						{"lst":that.remotesList,"lstname":"remotesList"},
+						{"lst":that.keysList,"lstname":"keysList"},];
+					that.devicesList.forEach(function(dev) {
+						if (dev.items) {
+							if (dev.items!=that.remoteList)
+								lstRename.push({"lst":dev.items,"lstname":""});
+							dev.items.forEach(function(rem) {
+								if (rem.items!=that.keysList) {
+									lstRename.push({"lst":rem.items,"lstname":""});
+								}
+							});
+						}
+					});
+					
+					if (this.itemRename.devicenick!=orig.devicenick) {
+						lstRename.forEach(function(renItem) {
+							performRename(orig.device,this.itemRename.devicenick,renItem.lst,renItem.lstname);
+						});
+						
+						this.actions.renames[orig.device] = this.itemRename.devicenick;
+					}
+					if (this.itemRename.remotenick!=orig.remotenick) {
+						lstRename.forEach(function(renItem) {
+							performRename(orig.remote,this.itemRename.remotenick,renItem.lst,renItem.lstname);
+						});
+						this.actions.renames[orig.remote] = this.itemRename.remotenick;
+					}
+				}
+			}
+		}
+		
+		ready() {
+			super.ready();
+			this.$.deviceslayout.responsiveSteps = [
+				{minWidth: 0, columns: 1, labelsPosition: 'top'},
+				{minWidth: '20em', columns: 3}
+			];
+			/*this.addEventListener('on-elements-list-changed', function(event) {
+				console.log("AAAAAAAAA");
+			});*/
+		}
+
+		/*ready() {
+			super.ready();
+			let pl = Polymer.dom(this.shadowRoot.querySelector('paper-listbox'));
+			for (let i = 0; i<this.elementsList.length; i++) {
+				let el = this.elementsList[i];
+				let listitem = new RemoteItem(el.name,el.device,this.COLORS[i%this.COLORS.length],el.default,el.keys);
+				pl.appendChild(listitem);
+				//listitem.name = el.name;
+				//listitem.device = el.device;
+				//listitem.deflt = el.default;
+				//listitem.keys = el.keys;
+				//listitem.color = this.COLORS[i%this.COLORS.length];
+			}
+		}*/
+
+	}
+	window.customElements.define(RemoteList.is, RemoteList);
+	window.customElements.define(ConnectionForm.is, ConnectionForm);
+	window.customElements.define(ConnectionValidator.is, ConnectionValidator);
+	/*const signupform = document.getElementById('signupform');
+	const signupsubmit = document.getElementById('signupsubmit');
+	const spinner = document.getElementById('spinner');*/
+
+});
+</script>
+
+</head>
+
+<body>
+<connection-form></connection-form>
+</body>

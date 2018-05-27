@@ -193,28 +193,73 @@ const Auth = {
     userobj: {},
     authcodes: {},
 
-    getUser: function(username, password) {
-        return User.authenticate(username, password).then(
-            function (val) {
-                let us;
-                if (!Data[val.uid])
-                    Data[val.uid] = {};
-                Auth.users[val.uid] = (us = {
-                    uid: val.uid,
-                    name: val.username,
-                    password: password,
-                    tokens: [val.token]
-                });
-                Auth.usernames[val.username] = val.uid;
-                Auth.tokens[val.token] = {
-                    uid: val.uid,
-                    accessToken: val.token,
-                    refreshToken: val.token,
-                    userId: val.uid
-                }
-                Auth.userobj[val.uid] = val;
-                return us;
+    genRandomString: function() {
+        return Math.floor(Math.random() * 10000000000000000000000000000000000000000).toString(36);
+    },
+
+    genUid: function() {
+        let uid = Math.floor(Math.random() * 1000).toString();
+        while (authstore.users[uid]) {
+            uid = genUid();
+        }
+        return uid;
+    },
+
+    genUser: function(username, password) {
+        Auth._putUserInDB(new User({
+            'uid':Auth.getUid(),
+            'token':Auth.genRandomString(),
+            'username':username,
+            'password':password
+        });
+    },
+
+    generateAuthCode: function(uid, clientId) {
+        let authCode = Auth.genRandomString();
+        Auth.authcodes[authCode] = {
+            type: 'AUTH_CODE',
+            uid: uid,
+            clientId: clientId,
+            expiresAt: new Date(Date.now() + (60 * 10000))
+        };
+        return authCode;
+    };
+
+    _putUserInDB: function (val,clientId) {
+        let us;
+        console.log("Putting in DB "+JSON.stringify(val));
+        if (!Data[val.uid])
+            Data[val.uid] = {};
+        Auth.users[val.uid] = (us = {
+            uid: val.uid,
+            name: val.username,
+            tokens: [val.token]
+        });
+        Auth.usernames[val.username] = val.uid;
+        Auth.tokens[val.token] = {
+            uid: val.uid,
+            accessToken: val.token,
+            refreshToken: val.token,
+            userId: val.uid
+        }
+        Auth.userobj[val.uid] = val;
+        if (typeof clientId!=="undefined" && clientId) {
+            Auth.generateAuthCode(uid,clientId);
+        }
+        return us;
+    },
+
+    getAutologinUsers: function(clientId) {
+        return User.loadAutoLoginUsers().then(function (users) {
+            users.forEach(function(us) {
+                Auth._putUserInDB(us,clientId);
             });
+            return users;
+        });
+    },
+
+    getUser: function(username, password, clientId) {
+        return User.authenticate(username, password).then(Auth._putUserInDB);
     }
 };
 

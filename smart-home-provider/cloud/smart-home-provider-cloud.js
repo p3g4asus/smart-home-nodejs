@@ -68,7 +68,7 @@ function cloudInit() {
     app.set('trust proxy', 1); // trust first proxy
     app.use(session({
         genid: function(req) {
-            return authProvider.genRandomString();
+            return datastore.Auth.genRandomString();
         },
         secret: 'xyzsecret',
         resave: false,
@@ -754,46 +754,6 @@ function cloudInit() {
         var cookie = '';
         var doGetAuthCode = null;
 
-        /*let r = new RegExp('http(s?)://([^:]+)[:]?([0-9]*)');
-        let m = r.exec(config.smartHomeProviderCloudEndpoint);
-        var h = m[1] == 's' ? require('https') : require('http');
-        // An object of options to indicate where to post to
-        var http_options = {
-            host: m[2],
-            port: m[3].length == 0 ? (m[1] == 's' ? 443 : 80) : m[3],
-            path: '/login',
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Content-Length': Buffer.byteLength(post_data)
-            }
-        };
-        var http_req = h.request(http_options, function(res) {
-            res.setEncoding('utf8');
-            Object.keys(res.headers).forEach(
-                function(name) {
-                    let value = res.headers[name].toString();
-                    console.log('[autoLogin LOGIN HEADERS]: ' + name + " = " + value);
-                    if (name.indexOf('cookie') >= 0) {
-                        cookie = value.substring(0, value.indexOf(";"));
-                    }
-                }
-            );
-            res.on('data', function(chunk) {
-                let rr = new RegExp(postobj.redirect_uri + '(\\?[^ ]+)');
-                let mm = rr.exec(chunk);
-                if (mm) {
-                    const parsed = querystring.parse(mm[1]);
-                    if (parsed && parsed['code']) {
-                        authCode = parsed.code;
-                        console.log('[autoLogin LOGIN]: authcode ' + authCode);
-                    }
-                }
-                console.log('[autoLogin LOGIN]: ' + chunk);
-                doGetAuthCode();
-            });
-        });*/
-
         var request = require('request');
 
         var options = {
@@ -958,7 +918,9 @@ function cloudInit() {
         app.addDevice,
         app.modDevice,
         app.removeDevice,
-        config.getInside("AUTOLOGIN")=="YES"?app.autoLogin:null);
+        config.getInside("AUTOLOGIN")=="YES"?app.autoLogin:null).catch(function(err) {
+            console.log("[ConfigureModule err] Error "+err);
+        });
     if (config.getInside("START_TYPE")=="GREENLOCK") {
         const PROD = true;
         require('greenlock-express').create({
