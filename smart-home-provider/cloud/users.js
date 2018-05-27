@@ -275,9 +275,9 @@ var User = (function(){
             return res && res.length?res[0]:null;
         });
     };
-    User.authenticate = function(username,password) {
+    User.authenticate = function(username,password,enc) {
         return User.findOne({"username":username}).then(function(us) {
-            if (User.comparePassword(password,us.password))
+            if ((typeof enc!=="undefined" && enc && password==us.password) || User.comparePassword(password,us.password))
                 return us;
             else
                 throw 345;
