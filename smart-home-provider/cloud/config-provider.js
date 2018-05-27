@@ -21,12 +21,14 @@ var expm = {
         "values": {
             "2":"NGROK",
             "0":"GREENLOCK",
-            "1":"LOCAL"
+            "1":"LOCAL",
+            "4":"GREENLOCKLOCAL"
         },
         "values2": {
             "NGROK":2,
             "GREENLOCK":0,
-            "LOCAL":1
+            "LOCAL":1,
+            "GREENLOCKLOCAL":4
         }
     },
     "RESET_DEV": {

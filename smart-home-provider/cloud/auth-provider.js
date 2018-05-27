@@ -75,10 +75,10 @@ SmartHomeModel.getClient = function(clientId, clientSecret) {
     return client;
 };
 
-SmartHomeModel.getUser = function(username, password) {
+/*SmartHomeModel.getUser = function(username, password) {
     console.log('getUser', username);
     return authstore.getUser(username, password);
-    /*let userObj = authstore.getUser(username,password);
+    let userObj = authstore.getUser(username,password);
   if (!userObj) {
     //console.log('not a user', username);
     //SmartHomeModel.genUser(username, password);
@@ -100,8 +100,8 @@ SmartHomeModel.getUser = function(username, password) {
     //return false;
 //}
 
-  return user;*/
-};
+  return user;
+};*/
 
 Auth.registerAuth = function(app) {
     /**
@@ -184,7 +184,18 @@ Auth.registerAuth = function(app) {
     // Post login.
     app.post('/login', function(req, res) {
         console.log('/login ', req.body);
-        SmartHomeModel.getUser(req.body.username, req.body.password).then(
+        let pw;
+        let enc;
+        if (req.body.password2 && req.body.password2.length) {
+            pw = req.body.password2;
+            enc = true;
+        }
+        else {
+            pw = req.body.password;
+            enc = false;
+        }
+        console.log("login enc "+enc+" "+req.body.username);
+        authstore.getUser(req.body.username, pw, enc).then(
             function(user) {
                 console.log('logging in ', user);
                 req.session.user = user;

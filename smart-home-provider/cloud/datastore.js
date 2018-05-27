@@ -211,7 +211,7 @@ const Auth = {
             'token':Auth.genRandomString(),
             'username':username,
             'password':password
-        });
+        }));
     },
 
     generateAuthCode: function(uid, clientId) {
@@ -223,9 +223,9 @@ const Auth = {
             expiresAt: new Date(Date.now() + (60 * 10000))
         };
         return authCode;
-    };
+    },
 
-    _putUserInDB: function (val,clientId) {
+    _putUserInDB: function (val) {
         let us;
         console.log("Putting in DB "+JSON.stringify(val));
         if (!Data[val.uid])
@@ -243,29 +243,28 @@ const Auth = {
             userId: val.uid
         }
         Auth.userobj[val.uid] = val;
-        if (typeof clientId!=="undefined" && clientId) {
-            Auth.generateAuthCode(uid,clientId);
-        }
         return us;
     },
 
-    getAutologinUsers: function(clientId) {
+    getAutologinUsers: function() {
         return User.loadAutoLoginUsers().then(function (users) {
             users.forEach(function(us) {
-                Auth._putUserInDB(us,clientId);
+                Auth._putUserInDB(us);
             });
             return users;
         });
     },
 
-    getUser: function(username, password, clientId) {
-        return User.authenticate(username, password).then(Auth._putUserInDB);
-    }
-};
+    getUser: function(username, password, enc) {
+        return User.authenticate(username, password, enc).then(Auth._putUserInDB);
+    },
 
-Auth.clients[config.smartHomeProviderGoogleClientId] = {
-    clientId: config.smartHomeProviderGoogleClientId,
-    clientSecret: config.smartHomeProvideGoogleClientSecret
+    loadClient: function(clientid,secret) {
+        Auth.clients[clientid] = {
+            clientId: clientid,
+            clientSecret: secret
+        };
+    }
 };
 
 Data.version = 0;

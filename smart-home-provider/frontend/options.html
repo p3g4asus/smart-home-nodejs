@@ -271,9 +271,9 @@ limitations under the License.
 					  --paper-input-container-input:{
 						max-height: 8em;
 					  }
-				}-toast
+				}
 				 
-				.error {
+				.error-toast {
 					--paper-toast-background-color: var(--paper-red-900);
 					--paper-toast-color: white;
 				}
@@ -505,7 +505,7 @@ limitations under the License.
 					error-message={{portErrorMessage}} extern-error=[[connectionError]]></connection-validator>
 				<vaadin-form-layout id="connformlayout">
 					<vaadin-form-item colspan="3" style="--vaadin-form-item-label-width: 4em;">
-						<remote-list id="remotelist" uid="{{data.uid}} AUTH_TOKEN="{{AUTH_TOKEN}}" host="{{data.host}}" port="{{data.port}}" connected="{{data.connected}}" devices-list={{devicesList}}></remote-list>
+						<remote-list id="remotelist" uid={{data.uid}} AUTH_TOKEN="{{AUTH_TOKEN}}" host="{{data.host}}" port="{{data.port}}" connected="{{data.connected}}" devices-list={{devicesList}}></remote-list>
 					</vaadin-form-item>
 					<vaadin-form-item colspan="2" label-position="top">
 						<label slot="label">OrvPy Connection</label>
@@ -1112,15 +1112,18 @@ HTMLImports.whenReady(() => {
 			to.classList.remove('error-toast');
 			to.classList.remove('plain-toast');
 			to.classList.add(style+'-toast');
+			to.text = msg;
 			to.duration = time*1000;
 			to.open();
 		}
 		
 		manageES(detail) {
-			let msg = detail.data.msg;
-			let data = detail.data.pld;
+			let d = JSON.parse(detail.data);
+			let msg = d.msg;
+			let data = d.pld;
 			let str = '';
 			let tt = 5;
+			console.log("New ES msg "+msg);
 			if (msg=='conmsg') {
 				str = data;
 			}
@@ -1133,6 +1136,9 @@ HTMLImports.whenReady(() => {
 				let cl = a.actionclass;
 				if (cl=="ActionLearnir") {
 					str = "Device "+devn+" learning key(s) "+JSON.stringify(a.irname);
+				}
+				else if (cl=="ActionNotifystate") {
+					str = "Device "+devn+" notifying state "+(a.device.state?"on":"off");
 				}
 				else if (cl=="ActionIrask") {
 					str = "Please press "+a.irname+" towards "+devn+" in 10 seconds.";
@@ -1182,7 +1188,9 @@ HTMLImports.whenReady(() => {
 				this.currentES.addEventListener('orvmsg',this.manageES.bind(this));
 				this.currentES.addEventListener('connmsg',this.manageES.bind(this));
 				this.currentES.onerror = (function(e) {
-					this.createToast('error', 'Error in ite connection: retrying',5);
+					this.currentES.close();
+					this.currentES = null;
+					this.createToast('error', 'Error in in the connection: retrying '+JSON.stringify(e.data),5);
 					setTimeout(this.createSiteConnection.bind(this),10000);
 				}).bind(this);
 			}
@@ -1475,6 +1483,7 @@ HTMLImports.whenReady(() => {
 					"device": mainel.devicesList[dom.deviceslb.selected].device,
 					"remote": mainel.remotesList[dom.remoteslb.selected].remote,
 					"key":el.remote,
+					"type":el.type,
 					"host":mainel.host,
 					"host":mainel.port
 				});

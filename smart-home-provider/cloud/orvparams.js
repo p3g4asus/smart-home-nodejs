@@ -697,8 +697,9 @@ function processMessage(uid,msg,res) {
         }
         let conn;
         if (ud && (conn = ud['conn']) && res) {
-            conn.write('event: action\n');
-            conn.write('data: ' + JSON.stringify({'pld':res,'msg':'action'}) + '\n\n');
+            console.log("[OnMessage] WRITING EVENT");
+            conn.write('event: orvmsg\n');
+            conn.write('data: ' + JSON.stringify({'pld':res,'msg':'orvmsg'}) + '\n\n');
         }
     }
     catch (e) {
@@ -735,16 +736,17 @@ exports.onAdd = null;
 exports.onMod = null;
 exports.onRemove = null;
 
-function initUserDevices(user,test) {
-    var ud = {};
+function initUserDevices(user,test,force) {
+    let ud = {},cli = null;
     let uid = user.uid;
     if (typeof test=="undefined")
         test = false;
-    if (test || !(ud = DBData[uid]) || !ud['client']) {
-        var cli = new tcpclient.MFZClient(uid,user.options.orvhost,user.options.orvport,user.options.orvretry);
+    if (test || !(ud = DBData[uid]) || !(cli = ud['client']) || force) {
+        if (cli)
+            cli.disonnect();
+        cli = new tcpclient.MFZClient(uid,user.options.orvhost,user.options.orvport,user.options.orvretry);
         if (!test) {
-            DBData[uid]['user'] = user;
-            DBData[uid]["client"] = cli;
+            DBData[uid] = {'user':user,'client':cli};
             cli.setOnError(function(uid,err) {
                 let conn,ud;
                 if ((ud = DBData[uid]) && (conn = ud['conn'])) {
@@ -758,11 +760,13 @@ function initUserDevices(user,test) {
         }
         else {
             cli.maxRetry = 3;
+            console.log("CONNECTING TEMP "+user.options.orvhost+':'+user.options.orvport);
             return cli.promise("devicedl").then(function(obj) {
                 try {
                     cli.disconnect();
                     let out = createTestDataBundle(obj.obj,user);
-                    return {'connected':DBData[uid] && DBData[uid]["client"],'dev':out};
+                    console.log('Connected is '+(DBData[uid] && DBData[uid]["client"]));
+                    return {'connected':(DBData[uid] && DBData[uid]["client"])!=null,'dev':out};
                 }
                 catch (err) {
                     if (err.stack)
@@ -785,7 +789,7 @@ function initUserDevices(user,test) {
 
 exports.initUserDevices = initUserDevices;
 
-function testConnection(usercp) {
+/*function testConnection(usercp) {
     return initUserDevices(usercp,true).then(function (deviceTable) {
         //"idx":0,"name":"samsung","filtered":true,"device":"blackbeam1","default":true,"keys":[],"shs":[]
         let ret = [];
@@ -833,7 +837,7 @@ function testConnection(usercp) {
     });
 }
 
-exports.testConnection = testConnection;
+exports.testConnection = testConnection;*/
 
 function createTestDataBundle(obj,user) {
     var devices = [];
@@ -1210,10 +1214,15 @@ exports.manageRawChanges = manageRawChanges;
 
 function setSiteConnection(uid,conn) {
     let ud,cli;
+    console.log("[SetSiteConnection] "+uid);
     if ((ud = DBData[uid]) && (cli = ud['client'])) {
         ud['conn'] = conn;
+        return true;
     }
+    else
+        return false;
 }
+exports.setSiteConnection = setSiteConnection;
 
 function getRemoteVolumeKey(brightn,remoteObj) {
     if (!remoteObj)

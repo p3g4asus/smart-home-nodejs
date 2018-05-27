@@ -119,7 +119,7 @@ function cloudInit() {
             return;
         }
         if (config.getInside("AUTO_DEV")=="YES")
-            orv.initUserDevices(datastore.Auth.userobj[uid],false);
+            orv.initUserDevices(datastore.Auth.userobj[uid],false,true);
         response.status(200)
             .set({
                 'Access-Control-Allow-Origin': '*',
@@ -400,7 +400,10 @@ function cloudInit() {
                 differences = true;
             }
             let manageUser = function() {
-                return differences?user.saveOptions():Promise.resolve(user);
+                return differences?user.saveOptions().then(function(us) {
+                    orv.initUserDevices(us,false,true);
+                    return user;
+                }):Promise.resolve(user);
             }
             manageUser()
             .then(function(us) {
@@ -429,8 +432,8 @@ function cloudInit() {
                 usercp.options.orvhost = request.query['host'];
                 usercp.options.orvport = request.query['port'];
             }
-            orv.initUserDevices(usercp,true).then(function(ret) {
-                usercp.connected = ret['connected'];
+            orv.initUserDevices(usercp,true,false).then(function(ret) {
+                usercp['connected'] = ret['connected'];
                 response.status(200)
                     .set({
                         'Access-Control-Allow-Origin': '*',
@@ -507,23 +510,27 @@ function cloudInit() {
             .send(devices);
     });
 
-    app.get('/smart-home-api/siteconnection/:uid', function(request, response) {
-        const uid = request.params.uid;
-        // console.log('get /smart-home-api/device-connection/' + deviceId);
-        orv.setSiteConnection(uid,response);
-
-        response.writeHead(200, {
-            'Content-Type': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'X-Accel-Buffering': 'no',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type'
-        });
-        response.connection.setTimeout(0);
-        response.on('close', function() {
-            orv.setSiteConnection(uid,null);
-        });
+    app.get('/siteconnection/:uid', function(request, response) {
+        const uid = request.params.uid.substring(1);
+        console.log('get /siteconnection/' + uid);
+        if (orv.setSiteConnection(uid,response)) {
+            response.writeHead(200, {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+                'X-Accel-Buffering': 'no',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type'
+            });
+            response.connection.setTimeout(0);
+            response.on('close', function() {
+                orv.setSiteConnection(uid,null);
+            });
+        }
+        else
+            response.status(403).json({
+                error: "invalid param"
+            });
     });
 
     /**
@@ -737,15 +744,16 @@ function cloudInit() {
         //document.querySelector('[name="username"]').value = document.querySelector('paper-input[name="paper_username"]').value;
         //document.querySelector('[name="password"]').value = document.querySelector('paper-input[name="paper_password"]').value;
         //document.querySelector('#loginform').submit();
-        if (!datastore.Auth.users[uid])
+        let us;
+        if (!(us = datastore.Auth.userobj[uid]))
             return;
         var querystring = require('querystring');
         var postobj = {
             'redirect_uri': '/frontend',
             'client_id': config.smartHomeProviderGoogleClientId,
             'state': 'mfz_over',
-            'username': datastore.Auth.users[uid].name,
-            'password': datastore.Auth.users[uid].password
+            'username': us.username,
+            'password2': us.password
         };
         var post_data = querystring.stringify(postobj);
 
@@ -913,7 +921,9 @@ function cloudInit() {
         });
     };
 
-    const appPort = process.env.PORT || config.devPortSmartHome;
+    let appPort = process.env.PORT || config.devPortSmartHome;
+    if (typeof appPort=="string")
+        appPort = parseInt(appPort);
     orv.configureModule(
         app.addDevice,
         app.modDevice,
@@ -921,7 +931,8 @@ function cloudInit() {
         config.getInside("AUTOLOGIN")=="YES"?app.autoLogin:null).catch(function(err) {
             console.log("[ConfigureModule err] Error "+err);
         });
-    if (config.getInside("START_TYPE")=="GREENLOCK") {
+    let starttype = config.getInside("START_TYPE");
+    if (starttype=="GREENLOCK" || starttype=="GREENLOCKLOCAL") {
         const PROD = true;
         require('greenlock-express').create({
 
@@ -939,8 +950,9 @@ function cloudInit() {
                 ,
             app: app.use('/', express.static('./frontend'))
 
-        }).listen(appPort, 443);
-    } else {
+        }).listen(appPort+1, 443);
+    }
+    if (starttype!="GREENLOCK") {
         const server = app.listen(appPort, function() {
             const host = server.address().address;
             const port = server.address().port;
@@ -1001,6 +1013,7 @@ function cloudInit() {
 }
 
 config.init().then(function() {
+    datastore.Auth.loadClient(config.smartHomeProviderGoogleClientId,config.smartHomeProvideGoogleClientSecret);
     cloudInit();
 }).catch(function (err) {
     console.log("[Error] Error "+err+" in the init phase. Please check paramethers.")
