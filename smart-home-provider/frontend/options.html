@@ -120,7 +120,7 @@ limitations under the License.
     <link rel="import" href="bower_components/iron-icons/social-icons.html">
     <link rel="import" href="bower_components/iron-list/iron-list.html">
     <link rel="import" href="bower_components/paper-dialog/paper-dialog.html">
-	<link rel="import" href="bower_components/neon-animation/web-animations.html">	
+	<link rel="import" href="bower_components/neon-animation/web-animations.html">
     <link rel="import" href="bower_components/paper-input/paper-input.html">
     <link rel="import" href="bower_components/paper-input/paper-textarea.html">
     <link rel="import" href="bower_components/paper-checkbox/paper-checkbox.html">
@@ -215,20 +215,20 @@ limitations under the License.
 				.defaultclass {
 					color: var(--paper-yellow-a700);
 				}
-				
+
 				vaadin-form-item {
 					--vaadin-form-item-label-width: 0em;
 				}
-				
+
 				.baseclass:enabled {
 					color: black;
 				}
-				
+
 				.baseclass:disabled {
-					opacity: 0.65; 
+					opacity: 0.65;
 					cursor: not-allowed;
 				}
-				
+
 				vaadin-form-item {
 					--vaadin-form-item-row-spacing: 1em;
 				}
@@ -237,7 +237,7 @@ limitations under the License.
 					height:15em;
 					overflow-y: auto;
 				}
-				
+
 				paper-textarea {
 				  display: block;
 				  width: 30em;
@@ -249,50 +249,54 @@ limitations under the License.
 				paper-icon-button[hidden] {
 					display: none;
 				}
-				
+
 				paper-listbox[hidden] {
 					display: none;
 				}
-				
+
+				paper-dropdown-menu[hidden] {
+					display: none;
+				}
+
 				.hidden {
 					display: none;
 				}
-				
+
 				.padded-both {
 					padding-left: 10px;
 					padding-right: 10px;
 				}
-				
+
 				.padded-item {
 					padding-left: 5px;
 				}
-				
+
 				:host{
 					  --paper-input-container-input:{
 						max-height: 8em;
 					  }
 				}
-				 
+
 				.error-toast {
 					--paper-toast-background-color: var(--paper-red-900);
 					--paper-toast-color: white;
 				}
-				
+
 				.ok-toast {
 					--paper-toast-background-color: var(--paper-green-900);
 					--paper-toast-color: white;
 				}
-				
+
 				.warn-toast {
 					--paper-toast-background-color: var(--paper-yellow-900);
 					--paper-toast-color: black;
 				}
-				
+
 				.plain-toast {
-					
+
 				}
 			</style>
-		</custom-style>	
+		</custom-style>
 		<vaadin-form-layout id="deviceslayout">
 			<vaadin-form-item colspan="3">
 				<div id="deviceslb-scroll" class$="scrollpane [[getDRKListClass(devicesList)]]">
@@ -335,8 +339,8 @@ limitations under the License.
 					</paper-listbox>
 				</div>
 			</vaadin-form-item>
-			<paper-toast id="toastnotify" class=[[getMSGQuality(msgType)]] text="This toast is red and fits bottom!"></paper-toast>
-			<iron-ajax id="emitajax" reject-with-request="true" method="GET" handle-as="json" debounce-duration="300" url="/emitkey" headers="[[getAuthHeader('application/json',AUTH_TOKEN)]]"> </iron-ajax>
+			<paper-toast id="toastnotify" text="This toast is red and fits bottom!"></paper-toast>
+			<iron-ajax id="serviceajax" reject-with-request="true" method="GET" handle-as="json" debounce-duration="300" url="/emitkey" headers="[[getAuthHeader('application/json',AUTH_TOKEN)]]"> </iron-ajax>
 			<vaadin-form-item colspan="3">
 				<div id="keyslb-scroll" class$="scrollpane [[getDRKListClass(keysList)]]">
 					<paper-listbox disabled=$[[disabled]] id="keyslb" scroll-target="keyslb-scroll">
@@ -349,7 +353,7 @@ limitations under the License.
 										<div secondary>{{item.remote}}</div>
 									</paper-item-body>
 									<paper-icon-button disabled$=[[getLearnKeyButtonDisabled(item,item.type,connected)]] on-click="setLearnKeyRemote" class="baseclass" icon="icons:lightbulb-outline"></paper-icon-button>
-									<paper-icon-button disabled$=[[getEmitKeyButtonDisabled(item,item.type,connected)]] on-click="setEmitKeyRemote" class="baseclass" icon="icons:settings-input-antenna"></paper-icon-button>
+									<paper-icon-button disabled$=[[getEmitKeyButtonDisabled(item,item.type,connected)]] on-click="emitKeyDo" class="baseclass" icon="icons:settings-input-antenna"></paper-icon-button>
 									<paper-icon-button class="baseclass" icon="{{getSelectedKeyIcon(item,item.filtered)}}"></paper-icon-button>
 									<paper-icon-button disabled$="[[getRenameKeyButtonDisabled(item,item.type)]]" on-click="setRenameKey" class="baseclass" icon="editor:mode-edit"></paper-icon-button>
 								</paper-icon-item>
@@ -384,34 +388,78 @@ limitations under the License.
 						disabled$=[[getRawKeyInputDisabled(itemRaw)]]
 						on-tap="setRawKeyInputCancel"></paper-icon-button>
 				</div>
-			</vaadin-form-item>-->	
+			</vaadin-form-item>-->
 		</vaadin-form-layout>
+		<paper-dialog class id="shdialog" modal>
+			<h1>Sh for device [[learnDevice.device]]/[[learnDevice.devicenick]]</h1>
+			<paper-dialog-scrollable>
+				<div id="shdialog-scroll" class="scrollpane">
+				<!--<div class="layout vertical end">-->
+					<paper-input flex invalid=[[shDialogNameInvalid(shLearn)]] class="padded-item" label="Sh Name" id="shdialog-input-shname" value="{{shLearn}}"></paper-input>
+					<paper-listbox disabled=$[[disabled]] id="shdialoglb">
+						<dom-repeat items="{{learnDialogList}}">
+							<template>
+								<paper-item>
+									<div class="layout horizontal end">
+										<paper-dropdown-menu colspan="2" invalid=[[shDialogGetP1ComboInvalid(item.idx,item.p0,item.p1,item.p2)]] class="padded-item" label="Remote" id="shdialog-drop-p1-[[item.idx]]">
+											<paper-listbox slot="dropdown-content" attr-for-selected="value" selected="{{item.p1}}">
+												<template is="dom-repeat" items="{{learnDialogRemotesList}}" as="remote">
+													<paper-item value="{{remote.remote}}">{{remote.remote}}</paper-item>
+												</template>
+											</paper-listbox>
+										</paper-dropdown-menu>
+										<paper-dropdown-menu colspan="2" class="padded-item" invalid=[[shDialogGetP2ComboInvalid(item.idx,item.p0,item.p1,item.p2)]] hidden$=[[shDialogGetKeysListHidden(item.p1)]] label="Key" id="shdialog-drop-p2-[[item.idx]]">
+											<paper-listbox slot="dropdown-content" hidden$=[[shDialogGetKeysListHidden(item.p1)]] attr-for-selected="value" selected="{{item.p2}}">
+												<template is="dom-repeat" items="[[getShDialogKeysList(item.p1)]]" as="key">
+													<paper-item value="{{key.remote}}">{{key.remote}}</paper-item>
+												</template>
+											</paper-listbox>
+										</paper-dropdown-menu>
+										<paper-input colspan="3" label="Delay (s)" hidden$=[[!shDialogGetKeysListHidden(item.p1)]] invalid=[[shDialogGetP0InputInvalid(item.idx,item.p0,item.p1,item.p2)]] class="padded-item" id="shdialog-input-p0-[[item.idx]]" value="{{item.p0}}"></paper-input>
+										<paper-icon-button class="baseclass" on-click="learnDialogRemoveLine" disabled$=[[learnDialogGetRemoveButtonDisabled(item.idx,item.p0,item.p1,item.p2,item.last)]] icon="remove"></paper-icon-button>
+										<paper-icon-button class="baseclass" on-click="shDialogAddLine" disabled$=[[shDialogGetAddButtonDisabled(item.idx,item.p0,item.p1,item.p2,item.last)]] icon="add"></paper-icon-button>
+									</div>
+								</paper-item>
+							</template>
+						</dom-repeat>
+					</paper-listbox>
+				<!--</div>-->
+				</div>
+			</paper-dialog-scrollable>
+			<div class="buttons">
+				<paper-button disabled$=[[!shDialogElementsOk]] on-click="createShDo">Create/Edit</paper-button>
+				<paper-button class autofocus dialog-confirm>Tap me to close</paper-button>
+			</div>
+		</paper-dialog>
 		<paper-dialog class id="learndialog" modal>
-			<p class>Learn key with device [[deviceLearn.device]]/[[deviceLearn.devicenick]]</p>
+			<h1>Learn key with device [[learnDevice.device]]/[[learnDevice.devicenick]]</h1>
 			<paper-dialog-scrollable class>
+				<div id="shdialog-scroll" class="scrollpane">
 				<paper-listbox disabled=$[[disabled]] id="learndialoglb">
-					<dom-repeat items="{{learnDialogList}}">
+					<dom-repeat items="{{learnDialogList}}" id="learndialogrep">
 						<template>
 							<paper-item>
 								<div class="layout horizontal end">
-									<paper-dropdown-menu colspan="2" class="padded-item" label="P1" id="learndialog-drop-p1">
-										<paper-listbox slot="dropdown-content" id="learndialog-drop-p1-list" attr-for-selected="value" selected="{{item.p1}}">
+									<paper-dropdown-menu colspan="2" invalid=[[learnDialogGetP1ComboInvalid(item.idx,item.p0,item.p1,item.p2)]] class="padded-item" label="Existent Remote" id="learndialog-drop-p1-[[item.idx]]">
+										<paper-listbox slot="dropdown-content" id="learndialog-drop-list-p1-[[item.idx]]" attr-for-selected="value" selected="{{item.p1}}">
 											<template is="dom-repeat" items="{{learnDialogRemotesList}}" as="remote">
 												<paper-item value="{{remote.remote}}">{{remote.remote}}</paper-item>
 											</template>
 										</paper-listbox>
 									</paper-dropdown-menu>
-									<paper-input colspan="3" invalid=[[learnDialogGetP0InputInvalid(item.p0,item.p1,item.p2)]] disabled$=[[learnDialogGetP0InputDisabled(item.p0,item.p1,item.p2)]] class="padded-item" id="learndialog-input-p0" value="{{item.p0}}"></paper-input>
-									<paper-input colspan="3" invalid=[[learnDialogGetP2InputInvalid(item.p0,item.p1,item.p2)]] class="padded-item" id="learndialog-input-p2" value="{{item.p2}}"></paper-input>
-									<paper-icon-button class="baseclass" on-click="learnDialogRemoveLine" disabled$=[[learnDialogGetRemoveButtonDisabled(item.p0,item.p1,item.p2,item.last)]] icon="remove"></paper-icon-button>
-									<paper-icon-button class="baseclass" on-click="learnDialogAddLine" disabled$=[[learnDialogGetAddButtonDisabled(item.p0,item.p1,item.p2,item.last)]] hidden$=[[learnDialogGetAddButtonHidden(item.p0,item.p1,item.p2,item.last)]] icon="add"></paper-icon-button>
+									<paper-input colspan="3" invalid=[[learnDialogGetP0InputInvalid(item.idx,item.p0,item.p1,item.p2)]] disabled$=[[learnDialogGetP0InputDisabled(item.idx,item.p0,item.p1,item.p2)]] class="padded-item" id="learndialog-input-p0-[[item.idx]]" value="{{item.p0}}"></paper-input>
+									<paper-input colspan="3" label="Key" invalid=[[learnDialogGetP2InputInvalid(item.idx,item.p0,item.p1,item.p2)]] class="padded-item" id="learndialog-input-p2-[[item.idx]]" value="{{item.p2}}"></paper-input>
+									<paper-icon-button class="baseclass" on-click="learnDialogRemoveLine" disabled$=[[learnDialogGetRemoveButtonDisabled(item.idx,item.p0,item.p1,item.p2,item.last)]] icon="remove"></paper-icon-button>
+									<paper-icon-button class="baseclass" on-click="learnDialogAddLine" disabled$=[[learnDialogGetAddButtonDisabled(item.idx,item.p0,item.p1,item.p2,item.last)]] hidden$=[[learnDialogGetAddButtonHidden(item.idx,item.p0,item.p1,item.p2,item.last)]] icon="add"></paper-icon-button>
 								</div>
 							</paper-item>
 						</template>
 					</dom-repeat>
 				</paper-listbox>
+				</div>
 			</paper-dialog-scrollable>
 			<div class="buttons">
+				<paper-button disabled$=[[!learnDialogElementsOk]] on-click="learnKeysDo">Learn</paper-button>
 				<paper-button class autofocus dialog-confirm>Tap me to close</paper-button>
 			</div>
 		</paper-dialog>
@@ -419,9 +467,9 @@ limitations under the License.
 			<p class>Rename {{itemRename.device}}/{{itemRename.remote}}</p>
 			<paper-dialog-scrollable class>
 				<div class="layout vertical end">
-					<paper-input class="padded-both" label=[[getRenameF1Label(itemRename.type)]] value={{itemRename.devicenick}} disabled$=[[getRenameDeviceInputDisabled(itemRename.idx,itemRename.type)]] id="devicename" placeholder="Device Name" required pattern="^[0-9a-zA-Z \-\+&]+$"></paper-input>
-					<paper-input class="padded-both" label=[[getRenameF2Label(itemRename.type)]] value={{itemRename.remotenick}} disabled$=[[getRenameRemoteInputDisabled(itemRename.idx,itemRename.type)]] id="remotename" placeholder="Remote Name" required pattern="^[0-9a-zA-Z \-\+&]+$"></paper-input>
-					<paper-button class="custom indigo" id="applyrename" on-click="renameAll" disabled$=[[getRenameButtonDisabled(itemRename.idx,itemRename.type)]]>Rename</paper-button>
+					<paper-input class="padded-both" label=[[getRenameF1Label(itemRename.type)]] value={{itemRename.devicenick}} disabled$=[[getRenameDeviceInputDisabled(itemRename.idx,itemRename.type)]] id="devicename" placeholder=[[getRenameF1Label(itemRename.type)]] invalid=[[getDeviceNameInvalid(itemRename.devicenick,itemRename.type)]]></paper-input>
+					<paper-input class="padded-both" label=[[getRenameF2Label(itemRename.type)]] value={{itemRename.remotenick}} disabled$=[[getRenameRemoteInputDisabled(itemRename.idx,itemRename.type)]] id="remotename" placeholder=[[getRenameF2Label(itemRename.type)]] invalid=[[getRemoteNameInvalid(itemRename.remotenick,itemRename.type)]]></paper-input>
+					<paper-button class="custom indigo" id="applyrename" on-click="renameAll" disabled$=[[getRenameButtonDisabled(itemRename.idx,itemRename.devicenick,itemRename.remotenick,itemRename.type)]]>Rename</paper-button>
 					<div class="layout horizontal end padded-both [[getRawDevClass(itemRename.type)]]">
 						<paper-textarea
 							class$="padded-both [[getRawDevClass(itemRename.type)]]"
@@ -449,7 +497,7 @@ limitations under the License.
 			<div class="buttons">
 				<paper-button class autofocus dialog-confirm>Tap me to close</paper-button>
 			</div>
-		</paper-dialog>	
+		</paper-dialog>
     </template>
 </dom-module>
 
@@ -461,19 +509,19 @@ limitations under the License.
 					color: #fff;
 					background-color: #4285f4;
 				}
-	
+
 				app-header paper-icon-button {
 					--paper-icon-button-ink-color: white;
 				}
-	
+
 				.preferred {
 					color: yellow;
 				}
-	
+
 				paper-spinner-lite.orange {
 					--paper-spinner-color: var(--google-yellow-500);
 				}
-	
+
 				paper-checkbox.blue {
 					--paper-checkbox-checked-color: var(--paper-blue-500);
 					--paper-checkbox-checked-ink-color: var(--paper-blue-500);
@@ -487,7 +535,7 @@ limitations under the License.
 					display: block;
 					font-size: 1.2em;
 				}
-				
+
 				vaadin-form-item {
 					--vaadin-form-item-row-spacing: 1em;
 				}
@@ -498,10 +546,10 @@ limitations under the License.
 		<iron-ajax id="submitajax" reject-with-request="true" method="POST" handle-as="json" debounce-duration="300" url="/jsonoptions" headers="[[getAuthHeader('application/json',AUTH_TOKEN)]]"> </iron-ajax>
 		<iron-form id="optionsform" allow-redirects="true" headers="[[getAuthHeader('application/json',AUTH_TOKEN)]]">
 			<form action='/jsonoptions' method='post' id="optionsforminner">
-				
-				<connection-validator name="host" pattern="^[A-Za-z0-9_\-\.]+$" 
+
+				<connection-validator name="host" pattern="^[A-Za-z0-9_\-\.]+$"
 					error-message={{hostErrorMessage}} extern-error=[[connectionError]]></connection-validator>
-				<connection-validator name="port" pattern="65535" 
+				<connection-validator name="port" pattern="65535"
 					error-message={{portErrorMessage}} extern-error=[[connectionError]]></connection-validator>
 				<vaadin-form-layout id="connformlayout">
 					<vaadin-form-item colspan="3" style="--vaadin-form-item-label-width: 4em;">
@@ -512,7 +560,7 @@ limitations under the License.
 						<paper-input label="Host" error-message=[[hostErrorMessage]] value={{data.host}} id="host" placeholder="Host" validator="connection-validator-host"></paper-input>
 						<paper-input label="Port" error-message=[[portErrorMessage]] value={{data.port}} id="port" placeholder="Port" validator="connection-validator-port"></paper-input>
 					</vaadin-form-item>
-					
+
 					<vaadin-form-item class="largespace">
 						<paper-dropdown-menu label="Language" id="labelcombo">
 							<paper-listbox slot="dropdown-content" id="language" attr-for-selected="value" selected="{{data.language}}">
@@ -536,7 +584,7 @@ limitations under the License.
 		</iron-form>
 	</template>
 </dom-module>
-	
+
 	<script>
 	function getUrlParameters() {
 		// Get each parameter
@@ -553,7 +601,7 @@ limitations under the License.
 		return parameterMap;
 	}
 HTMLImports.whenReady(() => {
-	
+
 	class ConnectionValidator extends Polymer.mixinBehaviors([Polymer.IronValidatorBehavior], Polymer.Element) {
 		static get is() {
 			return 'connection-validator';
@@ -599,8 +647,8 @@ HTMLImports.whenReady(() => {
 			console.log("AT1 " + this.externError + " ov " + this.oldvalue + " v " + value+" n "+this.name);
 			if (typeof value == "undefined")
 				return true;
-			
-			if (this.externError.length && (this.oldvalue == value || this.oldresult<0)) {
+
+			if (this.externError.length>0 && (this.oldvalue == value || this.oldresult<0)) {
 				this.set('errorMessage',this.externError);
 				this.oldresult = 0;
 				return false;
@@ -627,7 +675,7 @@ HTMLImports.whenReady(() => {
 				if (elem<0 || elem>isInt) {
 					this.set('errorMessage', "Field should be from >0 && <="+isInt+".");
 					this.oldresult = 0;
-					return false;				
+					return false;
 				}
 			}
 			else {
@@ -642,7 +690,7 @@ HTMLImports.whenReady(() => {
 			return true;
 		}
 	}
-	
+
 	/*class RemoteItem extends Polymer.Element {
 		static get is() {
 			return 'remote-item';
@@ -669,7 +717,7 @@ HTMLImports.whenReady(() => {
 			}
 		}
 		constructor(nm,dev,col,ks,def) {
-			super();  
+			super();
 			this.name = nm;
 			this.device = dev;
 			this.color = col;
@@ -741,34 +789,14 @@ HTMLImports.whenReady(() => {
 				}
 			}
 		}
-			
-		isRemoteSelectionInvalid(idx,type) {
-			return idx<0 || type=="s";
-		}
-		
-		isSelectionInvalid(idx,type) {
-			console.log("ISI "+idx);
-			return idx<0;
-		}
-		
-		isRenameImpossible(idx,type) {
-			return this.isSelectionInvalid(idx,type) || !this.$.devicename.validate() || 
-				(type=='r' && (this.isRemoteSelectionInvalid(idx,type) || !this.$.remotename.validate()));
-		}
-		
+
 		getAuthHeader(mime,dependency) {
 			let header = {"Content-Type": mime, "Accept": mime, "Authorization": "Bearer "+this.AUTH_TOKEN};
-			//console.log("new header "+JSON.stringify(header));
+			this.$.remotelist.set('AUTH_TOKEN',this.AUTH_TOKEN);
+			console.log("new header CF "+JSON.stringify(header));
 			return header;
 		}
-		
-		nameValidate(event) {
-			/*let dom = this.$;
-			let v1 = dom.devicename.validate(),
-				v2 = dom.remotename.validate();*/
-			this.$.applyrename.disabled = this.isRenameImpossible(this.myselected);
-		}
-		
+
 		submitform(event) {
 			let dom = this.$;
 			let that = this;
@@ -782,16 +810,17 @@ HTMLImports.whenReady(() => {
 			let request = this.$.submitajax.generateRequest();
 			return request.completes.then(function(req) {
 				const resp = req.response;
-				console.log("[getauthcode] request ok");
+				console.log("[submitform] request ok");
 				console.log(resp);
 				spinner.active = false;
 				spinner.hidden = true;
 				testbutton.disabled = false;
 				optionssubmit.disabled = false;
+				dom.remotelist.actions = {"renames":{},"raw":{},"filtered":{},"default":""};
 				dom.remotelist.disable(false);
 				//console.log(typeof resp);
 				//eval(resp+'');
-				
+
 				return resp/*{
 					"AUTH_TOKEN":AUTH_TOKEN,
 					"USERNAME":USERNAME
@@ -800,16 +829,8 @@ HTMLImports.whenReady(() => {
 				spinner.active = false;
 				spinner.hidden = true;
 				dom.remotelist.disable(false);
-				that.checkErrRedir(err);
+				RemoteList.checkErrRedir(err);
 			});
-		}
-		
-		checkErrRedir(err) {
-			console.log(err);
-			let loc = err.request.xhr.response && err.request.xhr.response.redir?err.request.xhr.response.redir:'/login';
-			window.location = loc;
-			window.history.pushState({}, null, loc);
-			window.dispatchEvent(new CustomEvent('location-changed'));
 		}
 
 		ready() {
@@ -839,7 +860,7 @@ HTMLImports.whenReady(() => {
 				console.log("DETAIL ");
 				console.log(event.detail);
 			});
-			
+
 			suf.addEventListener('iron-form-presubmit', function() {
 				//this.request.method = 'put';
 				this.request.body['user'] = that.data;
@@ -864,7 +885,7 @@ HTMLImports.whenReady(() => {
 				console.log("[getauthcode] error");
 				that.set('connectionError', "Auth Code request failed with code "+err.request.xhr.status);
 				dom.optionsform.fire('change');
-				that.checkErrRedir(err);
+				RemoteList.checkErrRedir(err);
 			});
 		}
 		getAuthCode() {
@@ -897,7 +918,7 @@ HTMLImports.whenReady(() => {
 				dom.remotelist.disable(false);
 				//console.log(typeof resp);
 				//eval(resp+'');
-				
+
 				return resp/*{
 					"AUTH_TOKEN":AUTH_TOKEN,
 					"USERNAME":USERNAME
@@ -909,21 +930,25 @@ HTMLImports.whenReady(() => {
 				throw err;
 			});
 		}
-		
+
 		setDataProperty(us) {
 			this.set('data.host',us.options.orvhost);
 			this.set('data.connected',us.connected);
 			this.set('data.uid',us.uid);
-			this.set('data.id',us._id);
 			this.set('data.username',us.username);
 			this.set('data.port',us.options.orvport);
 			this.set('data.autologin',us.options.autologin);
 			this.set('data.language',us.options.language);
 		}
 		setdevicesList(rList) {
+			this.$.remotelist.splice('keysList',0,this.$.remotelist.keysList.length);
+			this.$.remotelist.splice('remotesList',0,this.$.remotelist.remotesList.length);
+			this.splice('devicesList',0,this.devicesList.length);
 			this.set('devicesList',rList);
+			this.$.remotelist.$.deviceslb.set('selected',-1);
+			this.$.remotelist.$.deviceslb.set('selected',0);
 		}
-		
+
 		testConnection(event) {
 			const mainel = this;
 			const dom = mainel.$;
@@ -996,7 +1021,7 @@ HTMLImports.whenReady(() => {
 			this.shadowRoot.querySelector('[name="password"]').value = this.shadowRoot.querySelector('paper-input[name="paper_password"]').value;
 			this.$.optionsforminner.submit();
 		}*/
-	}	
+	}
 	class RemoteList extends Polymer.Element {
 		static get is() {
 			return 'remote-list';
@@ -1009,7 +1034,11 @@ HTMLImports.whenReady(() => {
 					value: [],
 					notify: true
 				},
-				deviceLearn: {
+				shLearn: {
+					type: String,
+					value: ''
+				},
+				learnDevice: {
 					type: Object,
 					value: {"device":"","remote":"","devicenick":"","remotenick":"","idx":-1,"type":""}
 				},
@@ -1020,6 +1049,14 @@ HTMLImports.whenReady(() => {
 				learnDialogRemotesList: {
 					type: Array,
 					value: []
+				},
+				learnDialogElementsOk: {
+					type: Boolean,
+					value: false
+				},
+				shDialogElementsOk: {
+					type: Boolean,
+					value: false
 				},
 				devicesList: {
 					type: Array,
@@ -1104,7 +1141,7 @@ HTMLImports.whenReady(() => {
 				}
 			}
 		}
-		
+
 		createToast(style,msg,time) {
 			let to = this.$.toastnotify;
 			to.classList.remove('ok-toast');
@@ -1116,8 +1153,9 @@ HTMLImports.whenReady(() => {
 			to.duration = time*1000;
 			to.open();
 		}
-		
+
 		manageES(detail) {
+			console.log("Eccomi qua");
 			let d = JSON.parse(detail.data);
 			let msg = d.msg;
 			let data = d.pld;
@@ -1125,12 +1163,12 @@ HTMLImports.whenReady(() => {
 			let tt = 5;
 			console.log("New ES msg "+msg);
 			if (msg=='conmsg') {
-				str = data;
+				str = data.msg;
 			}
 			else {
 				let a = data.action;
 				let devn = "N/A [N/A]";
-				if (a.device && a.device.name && a.device.name.length) {
+				if (a.device && a.device.name && a.device.name.length>0) {
 					devn = a.device.name+" ["+(a.device.type && a.device.type.length>6?a.device.type.substring(6):"N/A")+"]";
 				}
 				let cl = a.actionclass;
@@ -1153,7 +1191,7 @@ HTMLImports.whenReady(() => {
 				else if (cl=="ActionPing")
 					str = '';
 				else if (cl=="ActionCreatesh") {
-					str = "Device "+devn+" "+(a.irname.length?"creating":"deleting")+" shortcut "+a.shname;
+					str = "Device "+devn+" "+(a.irname.length>0?"creating":"deleting")+" shortcut "+a.shname;
 				}
 				else if (cl=="ActionDiscovery" || cl=="ActionGetinfo" || cl=="ActionDevicedl") {
 					let o = cl!="ActionGetinfo"?a.hosts:a.discovery;
@@ -1166,7 +1204,7 @@ HTMLImports.whenReady(() => {
 				}
 				else
 					str = "Action "+cl.substring(6)+" executed by device "+devn;
-				
+
 			}
 			let tstyle = '';
 			if (data.retval==1)
@@ -1177,16 +1215,16 @@ HTMLImports.whenReady(() => {
 				tstyle = 'warn';
 			else
 				tstyle = 'plain';
-			if (str.length) {
+			if (str.length>0) {
 				this.createToast(tstyle,str,tt);
 			}
 		}
-		
+
 		createSiteConnection() {
 			if (!this.currentES) {
 				this.currentES = new EventSource('/siteconnection/:'+this.uid);
 				this.currentES.addEventListener('orvmsg',this.manageES.bind(this));
-				this.currentES.addEventListener('connmsg',this.manageES.bind(this));
+				this.currentES.addEventListener('conmsg',this.manageES.bind(this));
 				this.currentES.onerror = (function(e) {
 					this.currentES.close();
 					this.currentES = null;
@@ -1195,27 +1233,156 @@ HTMLImports.whenReady(() => {
 				}).bind(this);
 			}
 		}
-		
-		learnDialogGetP2InputInvalid(p0,p1,p2) {
-			return p2.length==0 || !/^[a-zA-Z0-9\+\-_]+$/.exec(p2);
+
+		shDialogNameInvalid(v,auto) {
+			let el = this.$.shdialogInputShname;
+			let oldinvalid = !el || el.invalid;
+			let newinvalid = !v || v.length==0 || !/^@[a-zA-Z0-9\+\-_]+$/.exec(v);;
+			if (typeof auto=="undefined" || auto)
+				this.setShDialogElementsOk(newinvalid,oldinvalid);
+			return newinvalid;
 		}
-		
-		learnDialogGetP0InputInvalid(p0,p1,p2) {
-			return !this.learnDialogGetP0InputDisabled(p0,p1,p2) && this.learnDialogGetP2InputInvalid(p0,p1,p0);
+
+		shDialogGetKeysListHidden(p1) {
+			return p1=='$pause';
 		}
-		
-		learnDialogGetP0InputDisabled(p0,p1,p2) {
+
+		shDialogGetP2ComboInvalid(idx,p0,p1,p2,auto) {
+			//console.log(this.shadowRoot.querySelector('#learndialog-input-p2-'+idx));
+			let el = this.shadowRoot.querySelector('#shdialog-drop-p2-'+idx);
+			let oldinvalid = !el || el.invalid;
+			let newinvalid = !this.shDialogGetKeysListHidden(p1) && (!p2 || p2.length==0);
+			if (typeof auto=="undefined" || auto)
+				this.setShDialogElementsOk(newinvalid,oldinvalid);
+			return newinvalid;
+		}
+
+		shDialogGetP1ComboInvalid(idx,p0,p1,p2,auto) {
+			//console.log(this.shadowRoot.querySelector('#learndialog-input-p0-'+idx));
+			let el = this.shadowRoot.querySelector('#shdialog-drop-p1-'+idx);
+			let oldinvalid = !el || el.invalid;
+			let newinvalid = !p1 || p1.length==0;
+			if (typeof auto=="undefined" || auto)
+				this.setShDialogElementsOk(newinvalid,oldinvalid);
+			return newinvalid;
+		}
+
+		getShDialogKeysList(p1) {
+			if (p1!='$pause') {
+				let out = [];
+				this.learnDialogRemotesList.some(function(rem) {
+					if (rem.remote==p1) {
+						out = rem.items.slice(0);
+						return true;
+					}
+					else
+						return false;
+				});
+				return out;
+
+			}
+			else
+				return [];
+		}
+
+		pxInputFieldInvalid(px) {
+			return !px || px.length==0 || !/^[a-zA-Z0-9\+\-_]+$/.exec(px);
+		}
+
+		learnDialogGetP2InputInvalid(idx,p0,p1,p2,auto) {
+			//console.log(this.shadowRoot.querySelector('#learndialog-input-p2-'+idx));
+			let el = this.shadowRoot.querySelector('#learndialog-input-p2-'+idx);
+			let oldinvalid = !el || el.invalid;
+			let newinvalid = this.pxInputFieldInvalid(p2);
+			if (typeof auto=="undefined" || auto)
+				this.setLearnDialogElementsOk(newinvalid,oldinvalid);
+			return newinvalid;
+		}
+
+		learnDialogGetP1ComboInvalid(idx,p0,p1,p2,auto) {
+			//console.log(this.shadowRoot.querySelector('#learndialog-input-p0-'+idx));
+			let el = this.shadowRoot.querySelector('#learndialog-drop-p1-'+idx);
+			let oldinvalid = !el || el.invalid;
+			let newinvalid = !p1 || p1.length==0;
+			if (typeof auto=="undefined" || auto)
+				this.setLearnDialogElementsOk(newinvalid,oldinvalid);
+			return newinvalid;
+		}
+
+		learnDialogGetP0InputInvalid(idx,p0,p1,p2,auto) {
+			//console.log(this.shadowRoot.querySelector('#learndialog-input-p0-'+idx));
+			let el = this.shadowRoot.querySelector('#learndialog-input-p0-'+idx);
+			let oldinvalid = !el || el.invalid;
+			let newinvalid = !this.learnDialogGetP0InputDisabled(idx,p0,p1,p2) && this.pxInputFieldInvalid(p0);
+			if (typeof auto=="undefined" || auto)
+				this.setLearnDialogElementsOk(newinvalid,oldinvalid);
+			return newinvalid;
+		}
+
+		shDialogGetP0InputInvalid(idx,p0,p1,p2,auto) {
+			//console.log(this.shadowRoot.querySelector('#learndialog-input-p0-'+idx));
+			let el = this.shadowRoot.querySelector('#shdialog-input-p0-'+idx);
+			let oldinvalid = !el || el.invalid;
+			let newinvalid = this.shDialogGetKeysListHidden(p1) && !(parseFloat(p0)>0.0);
+			if (typeof auto=="undefined" || auto)
+				this.setShDialogElementsOk(newinvalid,oldinvalid);
+			return newinvalid;
+		}
+
+		learnDialogGetP0InputDisabled(idx,p0,p1,p2) {
 			return p1!='new';
 		}
-		
-		learnDialogGetAddButtonDisabled(p0,p1,p2,last) {
-			return this.learnDialogGetP2InputInvalid(p0,p1,p2) || this.learnDialogGetP0InputInvalid(p0,p1,p2) || !p1 || p1.length==0;
+
+		learnDialogRowInvalid(el) {
+			return this.learnDialogGetP1ComboInvalid(el.idx,el.p0,el.p1,el.p2,false) || this.learnDialogGetP0InputInvalid(el.idx,el.p0,el.p1,el.p2,false) || this.learnDialogGetP2InputInvalid(el.idx,el.p0,el.p1,el.p2,false);
 		}
-		
-		learnDialogGetAddButtonHidden(p0,p1,p2,last) {
+
+		shDialogRowInvalid(el) {
+			return this.shDialogGetP1ComboInvalid(el.idx,el.p0,el.p1,el.p2,false) || this.shDialogGetP2ComboInvalid(el.idx,el.p0,el.p1,el.p2,false) || this.shDialogGetP0InputInvalid(el.idx,el.p0,el.p1,el.p2,false);
+		}
+
+		setLearnDialogElementsOk(newinvalid,oldinvalid) {
+			if (newinvalid!=oldinvalid) {
+				if (newinvalid)
+					this.set('learnDialogElementsOk',false);
+				else {
+					this.set('learnDialogElementsOk',!this.learnDialogList.some((function(el) {
+						if (this.learnDialogRowInvalid(el))
+							return true;
+						else
+							return false;
+					}).bind(this)));
+				}
+			}
+		}
+
+		setShDialogElementsOk(newinvalid,oldinvalid) {
+			if (newinvalid!=oldinvalid) {
+				if (newinvalid || this.shDialogNameInvalid(this.shLearn,false))
+					this.set('shDialogElementsOk',false);
+				else {
+					this.set('shDialogElementsOk',!this.learnDialogList.some((function(el) {
+						if (this.shDialogRowInvalid(el))
+							return true;
+						else
+							return false;
+					}).bind(this)));
+				}
+			}
+		}
+
+		learnDialogGetAddButtonDisabled(idx,p0,p1,p2,last) {
+			return this.learnDialogRowInvalid({'idx': idx,'p0':p0,'p1':p1,'p2':p2,'last':last});
+		}
+
+		shDialogGetAddButtonDisabled(idx,p0,p1,p2,last) {
+			return this.shDialogRowInvalid({'idx': idx,'p0':p0,'p1':p1,'p2':p2,'last':last});
+		}
+
+		learnDialogGetAddButtonHidden(idx,p0,p1,p2,last) {
 			return !last;
 		}
-		
+
 		learnDialogRemoveLine(event) {
 			let el = event.model.item;
 			if (el.last) {
@@ -1226,72 +1393,157 @@ HTMLImports.whenReady(() => {
 				it.idx = idx;
 			});
 		}
-		
-		learnDialogGetRemoveButtonDisabled(p0,p1,p2,last) {
-			return this.learnDialogList.length==1;
+
+		learnDialogGetRemoveButtonDisabled(idx,p0,p1,p2,last) {
+			return idx==0 && last;
 		}
-		
-		
+
+		manageAjaxRequest(request,txt,dlg) {
+			let mainel = this;
+			mainel.setWorking(true);
+			request.completes.then(function(req) {
+				const resp = req.response;
+				console.log('['+txt+" ajax] request ok");
+				console.log(resp);
+				mainel.setWorking(false);
+				let rv = req.xhr.response.exitv;
+				if (rv==0)
+					mainel.createToast('ok',txt+' request sent successfully',3);
+				else
+					mainel.createToast('warn',txt+' request sending error '+rv,3);
+				if (dlg)
+					dlg.close();
+			}, function(rejected) {
+				console.log('['+txt+" ajax] request Rejected");
+				console.log(rejected);
+				mainel.setWorking(false);
+				RemoteList.checkErrRedir(rejected);
+			});
+		}
+
+		learnKeysDo(event) {
+			if (this.uid && this.currentES) {
+				let lstlearn = [];
+				this.learnDialogList.forEach(function(el) {
+					let remote;
+					if (el.p1=="new")
+						remote = el.p0;
+					else
+						remote = el.p1;
+					lstlearn.push(remote+':'+el.p2);
+				});
+				this.$.serviceajax.url = '/learnkey';
+				this.$.serviceajax.method = 'POST';
+				this.$.serviceajax.set('body', {
+					"device": this.learnDevice.device,
+					"lst": lstlearn
+				});
+				let request = this.$.serviceajax.generateRequest();
+				this.manageAjaxRequest(request,"Learn",this.$.learndialog);
+			}
+		}
+
+		createShDo(event) {
+			if (this.uid && this.currentES) {
+				let lstsh = [];
+				this.learnDialogList.forEach(function(el) {
+					let key;
+					if (el.p1=="$pause")
+						key = '$'+el.p0;
+					else
+						key = el.p1+':'+el.p2;
+					lstsh.push(key);
+				});
+				this.$.serviceajax.url = '/createsh';
+				this.$.serviceajax.method = 'POST';
+				this.$.serviceajax.set('body', {
+					"device": this.learnDevice.device,
+					"name": this.shLearn,
+					"lst": lstsh
+				});
+				let request = this.$.serviceajax.generateRequest();
+				this.manageAjaxRequest(request,"CreateSh",this.$.shdialog);
+			}
+		}
+
 		learnDialogAddLine(event) {
 			let fromv = this.learnDialogList[this.learnDialogList.length-1];
 			this.push('learnDialogList',{'p0':fromv.p0,'p1':fromv.p1,'p2':'','idx':fromv.idx+1,'last':true});
 			this.set('learnDialogList.'+(this.learnDialogList.length-2)+'.last' ,false);
 		}
-		
+
+		shDialogAddLine(event) {
+			let fromv = event.model.item;
+			this.splice('learnDialogList',fromv.idx+1,0,{'p0':fromv.p0,'p1':fromv.p1,'p2':fromv.p2,'idx':fromv.idx+1,'last':fromv.idx==this.learnDialogList.length-1});
+			for (let i = 0;i<=fromv.idx; i++)
+				this.set('learnDialogList.'+i+'.last' ,false);
+			for (let i = fromv.idx+2;i<this.learnDialogList.length; i++)
+				this.set('learnDialogList.'+i+'.idx' ,i);
+
+		}
+
 		disable(v) {
 			console.log("remotelist disabled "+v);
 			this.set('disabled',v);
 		}
-		
+
 		setWorking(v) {
 			console.log("remotelist disabled "+v);
 			this.set('working',v);
 			this.set('disabled',v);
 		}
-		
+
 		getAuthHeader(mime,dependency) {
 			let header = {"Content-Type": mime, "Accept": mime, "Authorization": "Bearer "+this.AUTH_TOKEN};
-			//console.log("new header "+JSON.stringify(header));
+			console.log("new header RL "+JSON.stringify(header));
 			return header;
 		}
-		
+
 		getRemoteColor(item) {
 			//console.log("getRemoteColor "+JSON.stringify(item));
 			return "background-color: var("+this.COLORS[item.idx%this.COLORS.length]+");";
 		}
-		
+
 		getDefaultRemoteClass(item,def) {
 			//console.log("getDefaultRemoteClass "+JSON.stringify(item));
 			return item.default?"defaultclass":"baseclass";
 		}
-		
+
 		getDefaultRemoteButtonDisabled(item,type) {
 			return item.type!="r1" || this.disabled;
 		}
-		
+
 		getRenameRemoteButtonDisabled(item,type) {
 			return item.type!="r1" || this.disabled;
 		}
-		
+
 		getRenameKeyButtonDisabled(item,type) {
 			return this.disabled;
 		}
-		
+
 		getRenameDeviceInputDisabled(idx,type) {
 			return type.length==0 || this.disabled;
 		}
-		
+
 		getRenameRemoteInputDisabled(idx,type) {
 			return type.length==0 || type.charAt(0)=="d" || type=="r2" || type=="r3" || this.disabled;
 		}
-		
+
+		getDeviceNameInvalid(v,type) {
+			return !/^[0-9a-zA-Z \-\+&]+$/.exec(v);
+		}
+
+		getRemoteNameInvalid(v,type) {
+			return !/^[0-9a-zA-Z \-\+&]+$/.exec(v) && !this.getRenameRemoteInputDisabled(0,type);
+		}
+
 		getRenameF1Label(tp) {
 			if (tp.startsWith("d") || tp.startsWith("r") || tp=="k3")
 				return "Device Name";
 			else
 				return "Remote Name";
 		}
-		
+
 		getRenameF2Label(tp) {
 			if (tp.startsWith("d") || tp.startsWith("r"))
 				return "Remote Name";
@@ -1300,22 +1552,15 @@ HTMLImports.whenReady(() => {
 			else
 				return "Key Name";
 		}
-		
-		getRenameButtonDisabled(idx,type) {
-			if (this.getRenameRemoteInputDisabled(idx,type)) {
-				console.log("RBD 1");
-				return this.disabled || this.getRenameDeviceInputDisabled(idx,type) || !this.$.devicename.validate();
-			}
-			else {
-				console.log("RBD 2");
-				return this.disabled || !this.$.devicename.validate() || !this.$.remotename.validate();
-			}
+
+		getRenameButtonDisabled(idx,device,remote,type) {
+			return this.getRemoteNameInvalid(remote,type) || this.getDeviceNameInvalid(device,type);
 		}
-		
+
 		getSelectedRemoteButtonDisabled(item,type) {
 			return item.type=="r2" || this.disabled;
 		}
-		
+
 		setDefaultRemote(event) {
 			let el = event.model.item;
 			if (!el.default) {
@@ -1342,7 +1587,7 @@ HTMLImports.whenReady(() => {
 				that.actions.default = remelem.device+':'+remelem.remote;
 			}
 		}
-		
+
 		setItemRename(event) {
 			let el = event.model.item;
 			this.set('itemRename.devicenick',el.devicenick);
@@ -1357,12 +1602,12 @@ HTMLImports.whenReady(() => {
 			this.$.renamedialog.positionTarget = event.composedPath()[0];
 			this.$.renamedialog.open();
 		}
-		
+
 		onDeviceSelected(event) {
 			let sel = this.$.deviceslb.selected;
 			this.$.keyslb.selected = 0;
 			this.$.remoteslb.selected = 0;
-			this.set('keysList',[]);			
+			this.set('keysList',[]);
 			if (sel>=0 && sel<this.devicesList.length) {
 				this.set('remotesList',this.devicesList[sel].items);
 				this.onRemoteSelected(null);
@@ -1371,7 +1616,7 @@ HTMLImports.whenReady(() => {
 				this.set('remotesList',[]);
 			}
 		}
-		
+
 		onRemoteSelected(event) {
 			let sel = this.$.remoteslb.selected;
 			console.log("Changesel remote "+sel);
@@ -1384,7 +1629,7 @@ HTMLImports.whenReady(() => {
 				this.set('keysList',[]);
 			}
 		}
-		
+
 		onKeySelected(event) {
 			let sel = this.$.keyslb.selected;
 			console.log("Changesel key "+sel);
@@ -1395,11 +1640,11 @@ HTMLImports.whenReady(() => {
 				this.set('itemRaw',{'raw':'','idx':-1,'remote':'','device':'','remotenick':'','devicenick':''});
 			}
 		}
-		
+
 		getRawDevClass(tp) {
 			return (tp!="k1" && tp!="k2")?"hidden":"";
 		}
-		
+
 		setRawKeyInputOK(event) {
 			let idx = this.itemRename.idx;
 			if (idx>=0 && idx<this.keysList.length) {
@@ -1409,114 +1654,170 @@ HTMLImports.whenReady(() => {
 					this.itemRename.remote;
 				this.actions.raw[key] = this.itemRename.raw;
 				console.log("Action inserted: "+key);
+				this.createToast('plain','Edit action will be executed on submit',5);
 			}
 		}
-		
+
 		setRawKeyInputCancel(event) {
 			let idx = this.itemRename.idx;
 			if (idx>=0 && idx<this.keysList.length) {
 				this.set('itemRename.raw',this.keysList[idx].raw);
 			}
 		}
-		
+
 		getRawKeyInputDisabled(raw,type) {
-			return raw && raw.length && /[^0-9,]/.exec(raw) && type=="k1";
+			return raw!=null && raw.length>0 && /[^0-9,]/.exec(raw) && type=="k1";
 		}
-		
+
 		setRenameDevice(event) {
 			this.setItemRename(event);
 		}
-		
+
 		setRenameRemote(event) {
 			this.setItemRename(event);
 		}
-		
+
 		setRenameKey(event) {
 			this.setItemRename(event);
 		}
-		
+
 		getLearnKeyButtonDisabled(item,type,connected) {
 			return !connected || (!type.startsWith("dr") && type!="r1" && type!="r2" && type!="k1" && type!="k2");
 		}
-		
+
 		getEmitKeyButtonDisabled(item,type,connected) {
 			return !connected || (type!="k3" && type!="k1" && type!="k2");
 		}
-		
+
 		setLearnKeyRemote(event) {
 			let el = event.model.item;
-			if (el.type=="r2" || el.type=="k2")
-				return;
 			if (this.learnDialogList.length>1) {
-				this.splice('learnDialogList',1,learnDialogList.length-1);
+				this.splice('learnDialogList',1,this.learnDialogList.length-1);
 			}
-			this.set('learnDialogList.0.last',true);
-			this.set('learnDialogList.0.idx',0);
-			this.set('learnDialogList.0.p0','');
-			this.set('learnDialogList.0.p1','');
-			this.set('learnDialogList.0.p2','');
-			let reml,rems;
-			if (el.type.charAt(0)=="d") {
-				this.set('deviceLearn',el);
-				reml = el.items.slice(0);
-				rems = reml[0].remote;
+			if (el.type=="r2" || el.type=="k2") {
+				this.set('learnDevice',this.devicesList[this.$.deviceslb.selected]);
+				let reml = this.devicesList[this.$.deviceslb.selected].items.slice(0);
+				reml.push({
+					'raw':'',
+					'remote':'$pause',
+					'device':this.learnDevice.device,
+					'remotenick':'$pause',
+					'devicenick':this.learnDevice.devicenick,
+					'idx':reml.length,
+					'type':'k4',
+					'default':false,
+					'filtered':false});
+				this.set('learnDialogRemotesList',reml);
+				if (el.type.charAt(0)=="r") {
+					this.set('shLearn','');
+					this.set('learnDialogList.0.last',true);
+					this.set('learnDialogList.0.idx',0);
+					this.set('learnDialogList.0.p0','');
+					this.set('learnDialogList.0.p1','');
+					this.set('learnDialogList.0.p2','');
+				}
+				else {
+					this.set('shLearn',el.remote);
+					let keys = el.raw.split('|');
+					this.splice('learnDialogList',1,1);
+					keys.forEach(function(key,idx) {
+						let p1v = '',p2v = '',p0v = '',spli;
+						if (key.charAt(0)=='@') {
+							p1v = this.learnDialogRemotesList[this.learnDialogRemotesList.length-2].remote;
+							p2v = el.remote;
+						}
+						else if (key.charAt(0)=='$') {
+							p1v = this.learnDialogRemotesList[this.learnDialogRemotesList.length-1].remote;
+							p0v = key.substring(1);
+						}
+						else if ((spli = key.indexOf(':'))>0 && spli+1<key.length-1) {
+							p1v = key.substring(0,spli);
+							p2v = key.substring(spli+1);
+						}
+						if (!idx) {
+							this.set('learnDialogList.0.last',idx==keys.length-1);
+							this.set('learnDialogList.0.idx',0);
+							this.set('learnDialogList.0.p0',p0v);
+							this.set('learnDialogList.0.p1',p1v);
+							this.set('learnDialogList.0.p2',p2v);
+						}
+						else
+							this.push('learnDialogList',{
+								'p0':p0v,
+								'p1':p1v,
+								'p2':p2v,
+								'last':idx==keys.length-1,
+								'idx':idx
+							});
+					},this);
+				}
+				this.$.shdialog.open();
 			}
 			else {
-				this.set('deviceLearn',this.devicesList[this.$.deviceslb.selected]);
-				reml = this.remotesList.slice(0);
-				rems = this.remotesList[el.idx].remote;
-				if (el.type.charAt(0)=="k")
-					this.set('learnDialogList.0.p2',el.remote);
+				this.set('learnDialogList.0.last',true);
+				this.set('learnDialogList.0.idx',0);
+				this.set('learnDialogList.0.p0','');
+				this.set('learnDialogList.0.p1','');
+				this.set('learnDialogList.0.p2','');
+				let reml,rems;
+				if (el.type.charAt(0)=="d") {
+					this.set('learnDevice',el);
+					reml = el.items.slice(0,el.items.length-1);
+					rems = '';
+				}
+				else {
+					this.set('learnDevice',this.devicesList[this.$.deviceslb.selected]);
+					reml = this.remotesList.slice(0,this.remotesList.length-1);
+					if (el.type.charAt(0)=="k") {
+						rems = this.remotesList[this.$.remoteslb.selected].remote;
+						this.set('learnDialogList.0.p2',el.remote);
+					}
+					else
+						rems = this.remotesList[el.idx].remote;
+				}
+				reml.push({'raw':'','idx':reml.length,'remote':'new','device':this.learnDevice.device,'remotenick':'new','devicenick':this.learnDevice.devicenick});
+				this.set('learnDialogRemotesList',reml);
+				this.set('learnDialogList.0.p1',rems);
+				this.$.learndialog.open();
 			}
-			reml.push({'raw':'','idx':reml.length,'remote':'new','device':this.deviceLearn.device,'remotenick':'new','devicenick':this.deviceLearn.devicenick});
-			this.set('learnDialogRemotesList',reml);
-			this.set('learnDialogList.0.p1',rems);
-			this.$.learndialog.open();
 		}
-		
-		setEmitKeyRemote(event) {
+
+		emitKeyDo(event) {
 			if (this.uid && this.currentES) {
 				let el = event.model.item;
-				let dom = this.$;
-				let mainel = this;
-				dom.emitajax.set('params', {
-					"device": mainel.devicesList[dom.deviceslb.selected].device,
-					"remote": mainel.remotesList[dom.remoteslb.selected].remote,
+				this.$.serviceajax.url = '/emitkey';
+				this.$.serviceajax.method = 'GET';
+				this.$.serviceajax.set('params', {
+					"device": this.devicesList[this.$.deviceslb.selected].device,
+					"remote": this.remotesList[this.$.remoteslb.selected].remote,
 					"key":el.remote,
-					"type":el.type,
-					"host":mainel.host,
-					"host":mainel.port
+					"type":el.type
 				});
-				console.log("[testcon] testing connection");
-				mainel.setWorking(true);
-				let request = dom.emitajax.generateRequest();
-				request.completes.then(function(req) {
-					const resp = req.response;
-					console.log("jsonoptions request ok");
-					console.log(resp);
-					mainel.setWorking(false);
-				}, function(rejected) {
-					console.log("[Rejected req]");
-					let req = rejected.request;
-					let error = rejected.error;
-					console.log(rejected);
-					mainel.setWorking(false);
-					//signupform.querySelector('.output').innerHTML = errorMessage;
-				});
+				let request = this.$.serviceajax.generateRequest();
+				this.manageAjaxRequest(request,"Emit",null);
 			}
 		}
-		
-		getDRKListClass(lst) {
-			return !lst || !lst.length?"hidden":"";
+
+		static checkErrRedir(err) {
+			console.log(err);
+			console.log("[ERROROUT] "+JSON.stringify(err.request.xhr.response));
+			let loc = err.request.xhr.response && err.request.xhr.response.redir?err.request.xhr.response.redir:'/login';
+			window.location = loc;
+			window.history.pushState({}, null, loc);
+			window.dispatchEvent(new CustomEvent('location-changed'));
 		}
-		
+
+		getDRKListClass(lst) {
+			return !lst || lst.length==0?"hidden":"";
+		}
+
 		getDeviceIcon(item,tp) {
 			if (tp.startsWith("ds"))
 				return "device:usb";
 			else if (tp.startsWith("dr"))
 				return "icons:settings-remote";
 		}
-		
+
 		setSelectedRemote(event) {
 			let el = event.model.item;
 			let v = !el.filtered;
@@ -1550,37 +1851,37 @@ HTMLImports.whenReady(() => {
 				});
 			}
 		}
-		
+
 		getSelectedRemoteIcon(item,filtered) {
 			return "icons:radio-button-"+(filtered?"":"un")+"checked";
 		}
-		
+
 		getSelectedKeyIcon(item,filtered) {
 			return this.getSelectedRemoteIcon(item,filtered);
 		}
-		
+
 		renameAll() {
 			let idx = this.itemRename.idx;
 			if (idx>=0) {
 				let orig = null;
-				if (itemRename.type.startsWith('d'))
+				if (this.itemRename.type.startsWith('d'))
 					orig = this.devicesList[idx];
-				else if (itemRename.type.startsWith('r'))
+				else if (this.itemRename.type.startsWith('r'))
 					orig = this.remotesList[idx];
-				else if (itemRename.type.startsWith('k'))
+				else if (this.itemRename.type.startsWith('k'))
 					orig = this.keysList[idx];
 				if (orig) {
 					let that = this;
 					let performRename = function(nmfrom,nmnick,lst,lstname) {
 						lst.forEach(function (el,i) {
 							if (el.device==nmfrom) {
-								if (lstname.length)
+								if (lstname.length>0)
 									that.set(lstname+'.'+i+'.devicenick', nmnick);
 								else
 									el.devicenick = nmnick;
 							}
 							if (el.remote==nmfrom) {
-								if (lstname.length)
+								if (lstname.length>0)
 									that.set(lstname+'.'+i+'.remotenick', nmnick);
 								else
 									el.remotenick = nmnick;
@@ -1602,24 +1903,26 @@ HTMLImports.whenReady(() => {
 							});
 						}
 					});
-					
+
 					if (this.itemRename.devicenick!=orig.devicenick) {
 						lstRename.forEach(function(renItem) {
 							performRename(orig.device,this.itemRename.devicenick,renItem.lst,renItem.lstname);
-						});
-						
+						},this);
+
 						this.actions.renames[orig.device] = this.itemRename.devicenick;
+						this.createToast('plain','Translation add of "'+orig.device+'" to "'+this.itemRename.devicenick+'" will be done on submit',5);
 					}
 					if (this.itemRename.remotenick!=orig.remotenick) {
 						lstRename.forEach(function(renItem) {
 							performRename(orig.remote,this.itemRename.remotenick,renItem.lst,renItem.lstname);
-						});
+						},this);
 						this.actions.renames[orig.remote] = this.itemRename.remotenick;
+						this.createToast('plain','Translation add of "'+orig.remote+'" to "'+this.itemRename.remotenick+'" will be done on submit',5);
 					}
 				}
 			}
 		}
-		
+
 		ready() {
 			super.ready();
 			this.$.deviceslayout.responsiveSteps = [

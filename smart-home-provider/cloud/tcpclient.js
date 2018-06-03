@@ -49,13 +49,14 @@ var MFZClient = (function(){
                 timeout = timeout || 30;
                 timeout*=1000;
                 that.currentPromise = {};
-                that.currentPromise.msg = str;
+                let idxcomma = str.indexOf(' ')
+                that.currentPromise.msg = idxcomma>0?str.substring(0,idxcomma):str;
                 that.currentPromise.promise = new Promise(function(resolve,reject) {
                     that.currentPromise.resolve = resolve;
                     that.currentPromise.reject = reject;
                     that.currentPromise.timer = setTimeout(function() {
-                        console.log("[CLI PROM] calling disconnect");
-                        that.disconnect();
+                        console.log("[CLI PROM] rejecting because of timeout");
+                        //that.disconnect();
                         that.currentPromise = null;
                         reject(that.id);
                     },timeout);

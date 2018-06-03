@@ -31,17 +31,23 @@ function checkAuth(request,response,redir) {
     if (typeof redir=="undefined" || ! redir || !redir.length)
         redir = '/frontend';
     let authToken,uid;
-    if (!(authToken = authProvider.getAccessToken(request)) ||
-        !datastore.Auth.tokens.hasOwnProperty(authToken) ||
-        !(uid = datastore.Auth.tokens[authToken].uid) ||
-        !datastore.isValidAuth(uid, authToken)) {
-        let path = util.format('/login?client_id=%s&redirect_uri=%s&state=%s',
+    let error = 0;
+    if (!(authToken = authProvider.getAccessToken(request)))
+        error = 1;
+    else if (!datastore.Auth.tokens.hasOwnProperty(authToken))
+        error = 2;
+    else if (!(uid = datastore.Auth.tokens[authToken].uid))
+        error = 3;
+    else if (!datastore.isValidAuth(uid, authToken))
+        error = 4;
+    if (error) {
+        let path = require('util').format('/login?client_id=%s&redirect_uri=%s&state=%s',
                 config.smartHomeProviderGoogleClientId, encodeURIComponent(redir), 'cool_jazz');
         response.status(403).set({
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Headers': 'Content-Type, Authorization'
         }).json({
-            'error': "invalid auth",
+            'error': error,
             'redir': redir
         });
         return null;
@@ -401,22 +407,65 @@ function cloudInit() {
             }
             let manageUser = function() {
                 return differences?user.saveOptions().then(function(us) {
+                    orv.conMessage(uid,'User change OK: '+JSON.stringify(us),1);
                     orv.initUserDevices(us,false,true);
                     return user;
                 }):Promise.resolve(user);
             }
             manageUser()
             .then(function(us) {
-                return orv.editTranslation(b.user.launguage,b.actions.renames);
+                return orv.editTranslation(uid,b.user.language,b.actions.renames);
             }).then(function(out) {
-                orv.manageRawChanges(user.uid,b.actions.raw).catch(function(err) {
-                    console.log("[manageRawChanges] rej "+err);
+                orv.manageRawChanges(uid,b.actions.raw).catch(function(err) {
+                    orv.conMessage(uid,'Edit raw error: '+JSON.stringify(err),null);
                 });
                 sendOut(response,200,0);
             }).catch(function(err) {
+                orv.conMessage(uid,'Something went wrong: '+err,null);
                 sendOut(response,200,err);
             });
 
+        }
+    });
+
+    app.get('/emitkey', function(request, response) {
+        let uid;
+        if (uid = checkAuth(request,response,'/options')) {
+            let q = request.query;
+            console.log('[emitkey] '+JSON.stringify(q));
+            if (q && q.type && q.device && q.key && q.remote) {
+                let rv = orv.processEmitRequest(uid,q.type,q.device,q.remote,q.key);
+                response.status(200).send({"exitv": rv});
+            }
+            else
+                response.status(200).send({"exitv": 1})
+        }
+    });
+
+    app.post('/learnkey', function(request, response) {
+        let uid;
+        if (uid = checkAuth(request,response,'/options')) {
+            let q = request.body;
+            console.log('[learnkey] '+JSON.stringify(q));
+            if (q && q.device && q.lst && q.lst.length && q.device.length) {
+                let rv = orv.processLearnRequest(uid,q.device,q.lst);
+                response.status(200).send({"exitv": rv});
+            }
+            else
+                response.status(200).send({"exitv": 1})
+        }
+    });
+
+    app.post('/createsh', function(request, response) {
+        let uid;
+        if (uid = checkAuth(request,response,'/options')) {
+            let q = request.body;
+            if (q && q.device && q.lst && q.lst.length && q.device.length && q.name && q.name.length) {
+                let rv = orv.processShRequest(uid,q.device,q.name,q.lst);
+                response.status(200).send({"exitv": rv});
+            }
+            else
+                response.status(200).send({"exitv": 1})
         }
     });
 
