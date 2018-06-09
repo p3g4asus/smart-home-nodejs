@@ -147,6 +147,8 @@ function init() {
             Config.smartHomeProviderCloudEndpoint = value.split("=")[1];
         else if (value.includes("http-port="))
             Config.devPortSmartHome = value.split("=")[1];
+        else if (value.includes("access-expire="))
+            require('./tokens').ACCESS_EXPIRE = parseInt(value.split("=")[1]);
         else if (value.includes("username="))
             Config.smartHomeProviderGoogleUser = value.split("=")[1];
         else if (value.startsWith("-f")) {

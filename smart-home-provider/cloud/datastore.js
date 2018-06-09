@@ -208,21 +208,24 @@ const Auth = {
     genUser: function(username, password) {
         Auth._putUserInDB(new User({
             'uid':Auth.getUid(),
-            'token':Auth.genRandomString(),
             'username':username,
             'password':password
         }));
     },
 
     generateAuthCode: function(uid, clientId) {
-        let authCode = Auth.genRandomString();
-        Auth.authcodes[authCode] = {
-            type: 'AUTH_CODE',
-            uid: uid,
-            clientId: clientId,
-            expiresAt: new Date(Date.now() + (60 * 10000))
-        };
-        return authCode;
+        if (clientId) {
+            let authCode = Auth.genRandomString();
+            Auth.authcodes[authCode] = {
+                type: 'AUTH_CODE',
+                uid: uid,
+                clientId: clientId,
+                expiresAt: new Date(Date.now() + (60 * 10000))
+            };
+            return authCode;
+        }
+        else
+            return null;
     },
 
     _putUserInDB: function (val) {
@@ -233,17 +236,44 @@ const Auth = {
         Auth.users[val.uid] = (us = {
             uid: val.uid,
             name: val.username,
-            tokens: [val.token]
+            tokens: val.tokens
         });
         Auth.usernames[val.username] = val.uid;
-        Auth.tokens[val.token] = {
-            uid: val.uid,
-            accessToken: val.token,
-            refreshToken: val.token,
-            userId: val.uid
-        }
+        Auth.putTokensInDB(val.tokens);
         Auth.userobj[val.uid] = val;
         return us;
+    },
+
+    getAccessTokenByUid: function(uid) {
+        return Auth.userobj[uid].tokens['access'].s;
+    },
+
+    loadUserTokens: function(uid,clientId,types) {
+        return new Promise(function(resolve,reject) {
+            let user;
+            if (!(user = Auth.userobj[uid]))
+                reject(100);
+            else {
+                user.loadTokens(clientId,types).then(function(toks) {
+                    Auth.putTokensInDB(toks);
+                    resolve(toks);
+                }).catch(function(err) {
+                    reject(err);
+                })
+            }
+        });
+    },
+
+    putTokensInDB: function(toks) {
+        if (toks)
+        Object.keys(toks).forEach(function(t) {
+            if (toks[t])
+                Auth.tokens[toks[t].s] = {
+                    uid: toks[t].uid,
+                    token: toks[t],
+                    userId: toks[t].uid
+                }
+        })
     },
 
     getAutologinUsers: function() {
@@ -255,8 +285,16 @@ const Auth = {
         });
     },
 
-    getUser: function(username, password, enc) {
-        return User.authenticate(username, password, enc).then(Auth._putUserInDB);
+    getUser: function(username, password, enc, clientId) {
+        let myuser;
+        return User.authenticate(username, password, enc).then(
+            function(us)  {
+                myuser = us;
+                return us.loadTokens(clientId,['access','refresh']);
+            }).then(function(toks) {
+                Auth._putUserInDB(myuser);
+                return myuser;
+            });
     },
 
     loadClient: function(clientid,secret) {
@@ -264,6 +302,33 @@ const Auth = {
             clientId: clientid,
             clientSecret: secret
         };
+    },
+    /**
+     * checks if user and auth exist and match
+     *
+     * @param uid
+     * @param authToken
+     * @returns {boolean}
+     */
+    isUserRegistered: function(uid) {
+        try {
+            let val = (Data.getUid(uid)) && Auth[uid]!=null && Auth[uid]==Auth.userobj[uid].tokens['refresh'].s;
+            console.log("[isUserRegistered out] "+val);
+            return val;
+        }
+        catch(e) {
+            console.log("[isUserRegistered err] "+e.stack);
+            return false;
+        }
+        /*let t0,tok;
+        return uid!=null && (Data.getUid(uid)) &&
+            authToken!=null && (t0 = Auth.tokens[authToken])!=null &&
+            (tok = t0.token).type=="access" && !tok.isExpired();*/
+
+        // FIXME - reenable below once a more stable auth has been put in place
+        // if (!Data.getUid(uid) || !Auth[uid])
+        //     return false;
+        // return (authToken == Auth[uid]);
     }
 };
 
@@ -450,7 +515,7 @@ Data.removeUser = function(uid, authToken) {
         console.error("cannot remove a user without an authToken!");
         return;
     }
-    if (!Data.isValidAuth(uid, authToken)) {
+    if (!Auth.isUserRegistered(uid)) {
         console.error("cannot remove a user with mis-matched authToken!");
         return;
     }
@@ -554,27 +619,10 @@ Data.removeDevice = function(uid, device) {
     Data.version++;
 };
 
-/**
- * checks if user and auth exist and match
- *
- * @param uid
- * @param authToken
- * @returns {boolean}
- */
-Data.isValidAuth = function(uid, authToken) {
-    return (Data.getUid(uid));
-
-    // FIXME - reenable below once a more stable auth has been put in place
-    // if (!Data.getUid(uid) || !Auth[uid])
-    //     return false;
-    // return (authToken == Auth[uid]);
-};
-
 exports.getUid = Data.getUid;
 exports.getStatus = Data.getStatus;
 exports.getStates = Data.getStates;
 exports.getProperties = Data.getProperties;
-exports.isValidAuth = Data.isValidAuth;
 exports.registerUser = Data.registerUser;
 exports.removeUser = Data.removeUser;
 exports.execDevice = Data.execDevice;

@@ -27,35 +27,6 @@ const datastore = require('./datastore');
 const orv = require('./orvparams');
 const authProvider = require('./auth-provider');
 
-function checkAuth(request,response,redir) {
-    if (typeof redir=="undefined" || ! redir || !redir.length)
-        redir = '/frontend';
-    let authToken,uid;
-    let error = 0;
-    if (!(authToken = authProvider.getAccessToken(request)))
-        error = 1;
-    else if (!datastore.Auth.tokens.hasOwnProperty(authToken))
-        error = 2;
-    else if (!(uid = datastore.Auth.tokens[authToken].uid))
-        error = 3;
-    else if (!datastore.isValidAuth(uid, authToken))
-        error = 4;
-    if (error) {
-        let path = require('util').format('/login?client_id=%s&redirect_uri=%s&state=%s',
-                config.smartHomeProviderGoogleClientId, encodeURIComponent(redir), 'cool_jazz');
-        response.status(403).set({
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-        }).json({
-            'error': error,
-            'redir': redir
-        });
-        return null;
-    }
-    else
-        return uid;
-}
-
 function cloudInit() {
     const User = require('./users');
     // Check that the API key was changed from the default
@@ -99,41 +70,21 @@ function cloudInit() {
      *       (http://expressjs.com/en/guide/writing-middleware.html)
      */
     app.post('/smart-home-api/auth', function(request, response) {
-        let authToken = authProvider.getAccessToken(request);
-        let uid = datastore.Auth.tokens[authToken].uid;
-
-        if (!uid || !authToken) {
-            response.status(401).set({
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-            }).json({
-                error: "missing auth headers"
-            });
-            return;
+        let uid;
+        if (uid = authProvider.checkAuth(request,response,'/login',false)) {
+            let us = datastore.Auth.userobj[uid];
+            datastore.registerUser(uid, us.tokens['refresh'].s);
+            if (config.getInside("AUTO_DEV")=="YES")
+                orv.initUserDevices(us,false,true);
+            response.status(200)
+                .set({
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+                })
+                .send({
+                    success: true
+                });
         }
-
-        datastore.registerUser(uid, authToken);
-
-        if (!datastore.isValidAuth(uid, authToken)) {
-            response.status(403).set({
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-            }).json({
-                success: false,
-                error: "failed auth"
-            });
-            return;
-        }
-        if (config.getInside("AUTO_DEV")=="YES")
-            orv.initUserDevices(datastore.Auth.userobj[uid],false,true);
-        response.status(200)
-            .set({
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-            })
-            .send({
-                success: true
-            });
     });
 
     /**
@@ -158,19 +109,9 @@ function cloudInit() {
      */
     app.post('/smart-home-api/register-device', function(request, response) {
 
-        let authToken = authProvider.getAccessToken(request);
-        let uid = datastore.Auth.tokens[authToken].uid;
-
-        if (!datastore.isValidAuth(uid, authToken)) {
-            console.error("Invalid auth", authToken, "for user", uid);
-            response.status(403).set({
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-            }).json({
-                error: "invalid auth"
-            });
+        let uid;
+        if (!(uid = authProvider.checkAuth(request,response,'/login',true)))
             return;
-        }
 
         let device = request.body;
         datastore.registerDevice(uid, device);
@@ -191,7 +132,7 @@ function cloudInit() {
           console.log("[RegDevice] device "+device.id+" wait "+device.wait);*/
 
         if (!device.hasOwnProperty("wait") || !device.wait)
-            app.requestSync(authToken, uid);
+            app.requestSync(uid);
 
         // otherwise, all good!
         response.status(200)
@@ -207,19 +148,9 @@ function cloudInit() {
      */
     app.post('/smart-home-api/reset-devices', function(request, response) {
 
-        let authToken = authProvider.getAccessToken(request);
-        let uid = datastore.Auth.tokens[authToken].uid;
-
-        if (!datastore.isValidAuth(uid, authToken)) {
-            console.error("Invalid auth", authToken, "for user", uid);
-            response.status(403).set({
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-            }).json({
-                error: "invalid auth"
-            });
+        let uid;
+        if (!(uid = authProvider.checkAuth(request,response,'/login',true)))
             return;
-        }
 
         let device = request.body;
         // Only complete the reset if this is enabled.
@@ -228,7 +159,7 @@ function cloudInit() {
             datastore.resetDevices(uid);
 
             // Resync for the user
-            app.requestSync(authToken, uid);
+            app.requestSync(uid);
         }
 
         // otherwise, all good!
@@ -246,19 +177,9 @@ function cloudInit() {
      */
     app.post('/smart-home-api/remove-device', function(request, response) {
 
-        let authToken = authProvider.getAccessToken(request);
-        let uid = datastore.Auth.tokens[authToken].uid;
-
-        if (!datastore.isValidAuth(uid, authToken)) {
-            console.error("Invalid auth", authToken, "for user", uid);
-            response.status(403).set({
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-            }).json({
-                error: "invalid auth"
-            });
+        let uid;
+        if (!(uid = authProvider.checkAuth(request,response,'/login',true)))
             return;
-        }
 
         let device = request.body;
         datastore.removeDevice(uid, device);
@@ -274,7 +195,7 @@ function cloudInit() {
             return;
         }
         if (!device.hasOwnProperty("wait") || !device.wait)
-            app.requestSync(authToken, uid);
+            app.requestSync(uid);
 
         // otherwise, all good!
         response.status(200)
@@ -301,18 +222,9 @@ function cloudInit() {
      */
     app.post('/smart-home-api/exec', function(request, response) {
 
-        let authToken = authProvider.getAccessToken(request);
-        let uid = datastore.Auth.tokens[authToken].uid;
-
-        if (!datastore.isValidAuth(uid, authToken)) {
-            response.status(403).set({
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-            }).json({
-                error: "invalid auth"
-            });
+        let uid;
+        if (!(uid = authProvider.checkAuth(request,response,'/login',true)))
             return;
-        }
 
         let executedDevice = app.smartHomeExec(uid, request.body);
         if (!executedDevice || !executedDevice[request.body.id]) {
@@ -327,7 +239,7 @@ function cloudInit() {
 
         if (request.body.nameChanged) {
             console.log("calling request sync from exec to update name");
-            app.requestSync(authToken, uid);
+            app.requestSync(uid);
         }
 
         // otherwise, all good!
@@ -341,14 +253,15 @@ function cloudInit() {
 
     app.post('/smart-home-api/execute-scene', function(request, response) {
 
-        let authToken = authProvider.getAccessToken(request);
-        let uid = datastore.Auth.tokens[authToken].uid;
+        let uid;
+        if (!(uid = authProvider.checkAuth(request,response,'/login',true)))
+            return;
 
         reqdata = request.body;
         data = {
             requestId: reqdata.requestId,
             uid: uid,
-            auth: authToken,
+            auth: datastore.Auth.userobj[uid].tokens['access'].s,
             commands: reqdata.inputs[0].payload.commands
         };
 
@@ -358,7 +271,7 @@ function cloudInit() {
     app.post('/jsonoptions',function(request,response) {
         let uid;
 
-        if (uid = checkAuth(request,response,'/options')) {
+        if (uid = authProvider.checkAuth(request,response,'/options',false)) {
             let user = datastore.Auth.userobj[uid];
             console.log("[jsonoptions post] tp = " + (typeof request.body)+" cn = "+JSON.stringify(request.body));
             let b = request.body;
@@ -430,7 +343,7 @@ function cloudInit() {
 
     app.get('/emitkey', function(request, response) {
         let uid;
-        if (uid = checkAuth(request,response,'/options')) {
+        if (uid = authProvider.checkAuth(request,response,'/options',false)) {
             let q = request.query;
             console.log('[emitkey] '+JSON.stringify(q));
             if (q && q.type && q.device && q.key && q.remote) {
@@ -444,7 +357,7 @@ function cloudInit() {
 
     app.post('/learnkey', function(request, response) {
         let uid;
-        if (uid = checkAuth(request,response,'/options')) {
+        if (uid = authProvider.checkAuth(request,response,'/options',false)) {
             let q = request.body;
             console.log('[learnkey] '+JSON.stringify(q));
             if (q && q.device && q.lst && q.lst.length && q.device.length) {
@@ -458,7 +371,7 @@ function cloudInit() {
 
     app.post('/createsh', function(request, response) {
         let uid;
-        if (uid = checkAuth(request,response,'/options')) {
+        if (uid = authProvider.checkAuth(request,response,'/options',false)) {
             let q = request.body;
             if (q && q.device && q.lst && q.lst.length && q.device.length && q.name && q.name.length) {
                 let rv = orv.processShRequest(uid,q.device,q.name,q.lst);
@@ -474,7 +387,7 @@ function cloudInit() {
 
         let uid;
 
-        if (uid = checkAuth(request,response,'/options')) {
+        if (uid = authProvider.checkAuth(request,response,'/options',false)) {
             let user = datastore.Auth.userobj[uid];
             let usercp = new User(user);
             if (request.query && request.query['host'] && request.query['port']) {
@@ -523,18 +436,9 @@ function cloudInit() {
     app.post('/smart-home-api/status', function(request, response) {
         // console.log('post /smart-home-api/status');
 
-        let authToken = authProvider.getAccessToken(request);
-        let uid = datastore.Auth.tokens[authToken].uid;
-
-        if (!datastore.isValidAuth(uid, authToken)) {
-            response.status(403).set({
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-            }).json({
-                error: "invalid auth"
-            });
+        let uid;
+        if (!(uid = authProvider.checkAuth(request,response,'/login',true)))
             return;
-        }
 
         let devices = app.smartHomeQuery(uid, request.body);
 
@@ -655,35 +559,39 @@ function cloudInit() {
         let code = 0;
         let send = null;
         if (!req.session.user) {
-            code = 400;
+            code = json?400:'&err=400';
         } else {
-            let accesscode = req.query["code"] ? req.query.code : req.body["code"];
+            let accesscode;
             let authCode;
-            if (!accesscode || !(authCode = datastore.Auth.authcodes[accesscode])) {
-                code = 401
+            if (json && !(accesscode = req.query["code"] ? req.query.code : req.body["code"])) {
+                code = json?402:'&err=402';
+                console.error('[getauthcode] no access code');
+            }
+            else if (json && !(authCode = datastore.Auth.authcodes[accesscode])) {
+                code = json?401:'&err=401';
                 console.error('[getauthcode] expired code');
             }
-            else if (new Date(authCode.expiresAt) < Date.now()) {
-                code = 403;
+            else if (json && new Date(authCode.expiresAt) < Date.now()) {
+                code = json?403:'&err=403';
                 console.error('[getauthcode] expired code');
             }
             else {
                 send = json?{
-                        AUTH_TOKEN : req.session.user.tokens[0],
-                        USERNAME: req.session.user.name
+                        AUTH_TOKEN : req.session.user.tokens['access'].s,
+                        USERNAME: req.session.user.username
                     }:
-                    'var AUTH_TOKEN = "' + req.session.user.tokens[0] + '";' +
-                    'var USERNAME = "' + req.session.user.name + '";';
+                    'var AUTH_TOKEN = "' + req.session.user.tokens['access'].s + '";' +
+                    'var USERNAME = "' + req.session.user.username + '";';
                 code = 200;
             }
         }
         if (!send) {
             if (!json)
-                send = '(function(){window.location.replace("' + path + '");})();';
+                send = '(function(){window.location.replace("' + path +code+ '");})();';
             else
                 send = {'redir':path};
         }
-        resp.status(code).send(send);
+        resp.status(json?code:200).send(send);
     });
     if (config.getInside("WELL_KNOWN")=="YES")
         app.use('/.well-known', express.static("../htdocs/.well-known"));
@@ -767,22 +675,6 @@ function cloudInit() {
             }
         });
     };
-
-    app.modDevice = function(uid, device) {
-        try {
-            const options = {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + datastore.Auth.users[uid].tokens[0]
-                }
-            };
-            options.body = JSON.stringify(device);
-            fetch("http://localhost:"+config.devPortSmartHome + '/smart-home-api/exec', options);
-        } catch (e) {
-            console.log(e.stack);
-        }
-    }
 
     app.autoLogin = function(uid) {
         //fech login
@@ -904,48 +796,81 @@ function cloudInit() {
         //app.smartHomeExec(uid, device);
         //var lnk = config.smartHomeProviderCloudEndpoint+'/smart-home-api/device-connection/'+device.id;
         //makeReq(lnk);
-        try {
-            var EventSource = require('eventsource');
-            var es = new EventSource("http://localhost:"+config.devPortSmartHome + '/smart-home-api/device-connection/' + device.id);
-            const options = {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + datastore.Auth.users[uid].tokens[0]
-                }
-            };
-            options.body = JSON.stringify(device);
-            fetch("http://localhost:"+config.devPortSmartHome + '/smart-home-api/register-device/', options);
-            return es;
-        } catch (e) {
-            console.log(e.stack);
+        return datastore.Auth.loadUserTokens(uid,config.smartHomeProviderGoogleClientId,["access"]).then(function(token) {
+            if (token['access']) {
+                var EventSource = require('eventsource');
+                var es = new EventSource("http://localhost:"+config.devPortSmartHome + '/smart-home-api/device-connection/' + device.id);
+                const options = {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token['access'].s
+                    }
+                };
+                options.body = JSON.stringify(device);
+                fetch("http://localhost:"+config.devPortSmartHome + '/smart-home-api/register-device/', options);
+                return es;
+            }
+            else
+                return null;
+        },function(e) {
+            if (e.stack)
+                console.log(e.stack);
+            else
+                console.log("[addDevice error] Error detected: "+e);
             return null;
-        }
+        });
     }
 
     app.removeDevice = function(uid, device) {
         //app.smartHomeExec(uid, device);
         //var lnk = config.smartHomeProviderCloudEndpoint+'/smart-home-api/device-connection/'+device.id;
         //makeReq(lnk);
-        try {
-            const options = {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + datastore.Auth.users[uid].tokens[0]
-                }
-            };
-            options.body = JSON.stringify(device);
-            //console.log("[RemDevice] Removing device "+device.id);
-            fetch("http://localhost:"+config.devPortSmartHome + '/smart-home-api/remove-device/', options);
-        } catch (e) {
-            console.log(e.stack);
-        }
+        return datastore.Auth.loadUserTokens(uid,config.smartHomeProviderGoogleClientId,["access"]).then(function(token) {
+            if (token['access']) {
+                const options = {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token['access'].s
+                    }
+                };
+                options.body = JSON.stringify(device);
+                //console.log("[RemDevice] Removing device "+device.id);
+                fetch("http://localhost:"+config.devPortSmartHome + '/smart-home-api/remove-device/', options);
+            }
+        },function(e) {
+            if (e.stack)
+                console.log(e.stack);
+            else
+                console.log("[removeDevice error] Error detected: "+e);
+        });
+    }
+
+    app.modDevice = function(uid, device) {
+        return datastore.Auth.loadUserTokens(uid,config.smartHomeProviderGoogleClientId,["access"]).then(function(token) {
+            if (token['access']) {
+                const options = {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token['access'].s
+                    }
+                };
+                options.body = JSON.stringify(device);
+                fetch("http://localhost:"+config.devPortSmartHome + '/smart-home-api/exec', options);
+            }
+        },function(e) {
+            if (e.stack)
+                console.log(e.stack);
+            else
+                console.log("[modDevice error] Error detected: "+e);
+        });
     }
 
     var lastRequestSync = 0;
 
-    app.requestSync = function(authToken, uid) {
+    app.requestSync = function(uid) {
         // REQUEST_SYNC
         var ts = Date.now();
         if (lastRequestSync && ts - lastRequestSync < 20000)
@@ -979,6 +904,7 @@ function cloudInit() {
         app.removeDevice,
         config.getInside("AUTOLOGIN")=="YES"?app.autoLogin:null).catch(function(err) {
             console.log("[ConfigureModule err] Error "+err);
+            console.log(err.stack);
         });
     let starttype = config.getInside("START_TYPE");
     if (starttype=="GREENLOCK" || starttype=="GREENLOCKLOCAL") {

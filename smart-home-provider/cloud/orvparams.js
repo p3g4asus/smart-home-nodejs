@@ -324,7 +324,7 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                         statesObj.hasOwnProperty("brightness")) {
                         dev.states.brightness = statesObj.brightness;
                         let num = statesObj.brightness+dev.properties.customData.offset;
-                        let numdata = ud["devicetable"].remote[defs].numData;
+                        let numdata = ud["devicetable"].remote[currentremote].numData;
                         if (numdata) {
                             cli.emitir(defDevice,defRemote+":"+numdata.pre+num+numdata.post);
                         }
@@ -561,9 +561,31 @@ function processDeviceDl(uid,objdata){
             console.log("[ProcessDevDl] Ecco 7 "+JSON.stringify(obj));
         }
     });
-    let olddevices;
-    if (exports.onRemove && (olddevices = ud["devices"])) {
-        olddevices.forEach(function(dev,idx){
+    let olddevices = ud["devices"];
+    let addDev = function(idx) {
+        if (idx<devices.length) {
+            let dev = devices[idx];
+            if (idx==devices.length-1)
+                dev.wait = false;
+            else
+                dev.wait = true;
+            exports.onAdd(uid,dev).then(function(es) {
+                ud.events[dev.id] = es;
+                if (es) {
+                    es.onmessage = deviceClosure("message",dev,uid);
+                    es.onerror = deviceClosure("error",dev,uid);
+                    es.addEventListener('change',deviceClosure("change",dev,uid));
+                }
+                addDev(idx+1);
+            }).catch(function(err) {
+                ud.events[dev.id] = null;
+                addDev(idx+1);
+            });
+        }
+    }
+    let removeDev = function(idx) {
+        if (exports.onRemove && olddevices && idx<olddevices.length) {
+            let dev = devices[idx];
             dev.wait = true;
             let es = ud.events[dev.id];
             if (es) {
@@ -572,24 +594,20 @@ function processDeviceDl(uid,objdata){
                 es.onerror = null;
                 es.removeAllListeners('change');
             }
-            exports.onRemove(uid,dev);
-        });
+            exports.onRemove(uid,dev).then(function() {
+                removeDev(idx+1);
+            },function() {
+                removeDev(idx+1);
+            });
+        }
+        else {
+            ud["devices"] = devices;
+            ud["events"] = {};
+            if (exports.onAdd)
+                addDev(0);
+        }
     }
-    ud["devices"] = devices;
-    ud["events"] = {};
-    if (exports.onAdd) {
-        devices.forEach(function(dev,idx){
-            if (idx==devices.length-1)
-                dev.wait = false;
-            else
-                dev.wait = true;
-            var es = exports.onAdd(uid,dev);
-            ud.events[dev.id] = es;
-            es.onmessage = deviceClosure("message",dev,uid);
-            es.onerror = deviceClosure("error",dev,uid);
-            es.addEventListener('change',deviceClosure("change",dev,uid));
-        });
-    }
+    removeDev(0);
 }
 
 function doRun(uid,command) {
@@ -1076,7 +1094,7 @@ function createDeviceTable(obj,user) {
                             if (!devices.remote[rn = devname+':'+kks[0]]) {
                                 devices.remote[rn] = {
                                     "keys":[],
-                                    "filtered": filters.indexOf(devname+":"+rn)>=0,
+                                    "filtered": filters.indexOf(rn)>=0,
                                     "remote": kks[0],
                                     "keysnick":[],
                                     "numData":null,
@@ -1157,7 +1175,7 @@ function createDeviceTable(obj,user) {
                     }
                 }
                 else if (dev.type=="DeviceS20") {
-                    devices.switch[devname] = {
+                    devices.switch[devname+':onoff'] = {
                         "filtered": filters.indexOf(devname)>=0,
                         "devicenick": getTranslation(devname,configuredLocale)
                     };

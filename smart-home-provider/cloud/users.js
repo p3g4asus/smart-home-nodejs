@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const redis_client = require('./redisconf');
+const Token = require('./tokens');
 
 var User = (function(){
     var User = function (us) {
@@ -29,11 +30,10 @@ var User = (function(){
             if (us.options.hasOwnProperty('autologin'))
                 that.options.autologin = us.options.autologin;
         }
-        that._id = us.hasOwnProperty('_id')?us._id:null;
         that.uid = us.hasOwnProperty('uid')?us.uid:null;
         that.username = us.hasOwnProperty('username')?us.username:null;
         that.password = us.hasOwnProperty('password')?us.password:null;
-        that.token = us.hasOwnProperty('token')?us.token:User.genRandomString();
+        that.tokens = us.hasOwnProperty('tokens')?us.tokens:{'access':null,'refresh':null};
         let padToSix = number => number <= 99999 ? ("00000"+number).slice(-6) : ""+number;
         that.optionsOk = function() {
             return that.options.defaultremote.length && that.options.filters.length;
@@ -82,17 +82,83 @@ var User = (function(){
                     });
                 }
             };
-            let pstart = hmSetOptions(that._id).then(function(us) {
-                return manageAutoLogin(that._id);
+            let pstart = hmSetOptions(that.uid).then(function(us) {
+                return manageAutoLogin(that.uid);
             });
             for (let i  = 0; i<that.options.filters.length; i++) {
                 pstart = pstart.then(function(us) {
-                    return setAddFilters(that._id,i);
+                    return setAddFilters(that.uid,i);
                 });
             }
             return pstart;
 
         };
+        that.createToken = function(clientid,type,expire) {
+            let resolve,reject;
+            let prom = new Promise(function(res,rej) {
+                resolve = res;
+                reject = rej;
+            });
+            let dt = typeof expire!="undefined"?expire:(type=='refresh'?-1:0);
+            let t = new Token({
+                'uid':that.uid,
+                'type':type,
+                'client':clientid,
+                'expire':dt
+            });
+            t.save().then(function(tok) {
+                that.tokens[type] = tok;
+                resolve(tok);
+            }).catch(function(err) {
+                reject(err);
+            });
+            return prom;
+        }
+
+        that.loadTokens = function(clientid,types) {
+            let resolve,reject;
+            let prom = new Promise(function(res,rej) {
+                resolve = res;
+                reject = rej;
+            });
+            let tokens = {};
+            let outtypes = [];
+            types.forEach(function(type) {
+                if (!that.tokens[type] || that.tokens[type].isExpired())
+                    outtypes.push(type);
+                else
+                    tokens[type] = that.tokens[type];
+            });
+            Token.loadByUid(that.uid,clientid,outtypes).then(function(outtok) {
+                Object.assign(tokens,outtok);
+                Object.assign(that.tokens,outtok);
+                let newToken = function(idx) {
+                    if (idx>=outtypes.length)
+                        resolve(tokens);
+                    else {
+                        let type = outtypes[idx];
+                        if (!tokens.hasOwnProperty(type)) {
+                            console.log("[User Token] Token "+type+" does not exist or is expired: creating");
+                            that.createToken(clientid,type).then(function(tok) {
+                                tokens[type] = tok;
+                                that.tokens[type] = tok;
+                                console.log("[User Token] Token "+type+" created successfully: "+JSON.stringify(tok));
+                                newToken(idx+1);
+                            }).catch(function(err) {
+                                newToken(idx+1);
+                            })
+                        }
+                        else {
+                            console.log("[User Token] Token "+type+" loaded successfully: "+JSON.stringify(tokens[type]));
+                            newToken(idx+1);
+                        }
+                    }
+                }
+                newToken(0);
+            });
+            return prom;
+        }
+
         that.save = function() {
             let setMaxId = function(nextid) {
                 return new Promise(function(resolve1,reject1) {
@@ -107,11 +173,10 @@ var User = (function(){
             let hmSetUser = function(nextid) {
                 that.uid = that.uid==null?padToSix(nextid):that.uid;
                 return new Promise(function(resolve1,reject1) {
-                    redis_client.hmset("user:"+nextid,
+                    redis_client.hmset("user:"+that.uid,
                         "password", User.hashPassword(that.password),
                         "username", that.username,
-                        "uid", that.uid,
-                        "token", that.token, function (err3,resHMSet3) {
+                        "uid", that.uid, function (err3,resHMSet3) {
                             if (err3 || resHMSet3.indexOf("OK")<0)
                                 reject1(err3?err3:2000);
                             else
@@ -148,18 +213,13 @@ var User = (function(){
                     var nextid = -1;
                     return User.getMaxId().then(function(nid) {
                         nextid = nid;
-                        that._id = nid;
                         return setMaxId(nextid);
                     }).then(function(us) {
                         return hmSetUser(nextid);
                     }).then(function(us) {
-                        return vSadd(nextid,"user:validusers",3000);
+                        return vSadd(that.uid,"user:validusers",3000);
                     }).then(function(us) {
-                        return vSet(nextid,"user:token:"+that.token,4000);
-                    }).then(function(us) {
-                        return vSet(nextid,"user:username:"+that.username,6000);
-                    }).then(function(us) {
-                        return vSet(nextid,"user:uid:"+that.uid,7000);
+                        return vSet(that.uid,"user:username:"+that.username,6000);
                     }).then(function(us) {
                         return that.saveOptions();
                     });
@@ -196,7 +256,7 @@ var User = (function(){
                     else
                         reject1([]);
                 }
-                function loadSingleUser(n) {
+                let loadSingleUser = function(n) {
                     User.findById(res1[n]).then(function (user) {
                         out.push(user);
                         manageResult(n);
@@ -211,9 +271,6 @@ var User = (function(){
                     loadSingleUser(0);
             });
         });
-    }
-    User.genRandomString = function() {
-        return Math.floor(Math.random() * 10000000000000000000000000000000000000000).toString(36);
     };
     User.comparePassword = function(hash,password) {
         return bcrypt.compareSync(hash, password);
@@ -222,7 +279,7 @@ var User = (function(){
         return bcrypt.hashSync(password, 10);
     };
     User.removeById = function(id) {
-        function getUserById() {
+        let getUserById = function() {
             return new Promise(function(resolve1,reject1) {
                 redis_client.hgetall("user:"+id,function(err0,resHget0) {
                     if (err0 || !resHget0)
@@ -232,7 +289,7 @@ var User = (function(){
                 });
             });
         }
-        function delSomething(what,err) {
+        let delSomething = function(what,err) {
             return new Promise(function(resolve1,reject1) {
                 redis_client.del(what,function(err0,resDel) {
                     if ((err0 || !resDel) && err)
@@ -242,7 +299,7 @@ var User = (function(){
                 });
             });
         }
-        function sremSomething(what,item,err) {
+        let sremSomething = function(what,item,err) {
             return new Promise(function(resolve1,reject1) {
                 redis_client.srem(what,item,function(err0,resDel) {
                     if (err0 || !resDel)
@@ -263,11 +320,7 @@ var User = (function(){
         }).then(function() {
             return delSomething("user:filters:"+id,0);
         }).then(function() {
-            return delSomething("user:token:"+foundUser["token"],4000);
-        }).then(function() {
             return delSomething("user:username:"+foundUser["username"],id,6000);
-        }).then(function() {
-            return delSomething("user:uid:"+foundUser["uid"],7000);
         });
     };
     User.findOne = function(obj) {
@@ -284,7 +337,7 @@ var User = (function(){
         });
     };
     User.findById = function(id) {
-        return User.findOne({"_id":id});
+        return User.findOne({"uid":id});
     };
     User.findM = function(obj,num) {
         let resolve;
@@ -309,7 +362,6 @@ var User = (function(){
                                         if (!err3 && res3) {
                                             res2.filters = res3;
                                         }
-                                        Object.assign(res1, {"_id":myid});
                                         res1.options = res2;
                                         out.push(new User(res1));
                                         console.log(JSON.stringify(res1));
@@ -338,8 +390,8 @@ var User = (function(){
                 funadd(0);
             }
         };
-        if (obj.hasOwnProperty('_id') && obj._id!==null) {
-            searchall(null,[obj._id]);
+        if (obj.hasOwnProperty('uid') && obj.uid!==null) {
+            searchall(null,[obj.uid]);
         }
         else {
             let ks = Object.keys(obj);
@@ -347,16 +399,8 @@ var User = (function(){
             let src = function(n) {
                 if (n<ks.length) {
                     redis_client.get("user:"+ks[n]+":"+obj[ks[n]],function (err3,res3) {
-                        if (!err3 && res3!==null) {
-                            let id = 0;
-                            try {
-                                id = parseInt(res3);
-                                listids.push(id);
-                            }
-                            catch(err) {
-                                console.log(err.stack);
-                            }
-                        }
+                        if (!err3 && res3!==null)
+                            listids.push(res3);
                         src(n+1);
                     });
                 }

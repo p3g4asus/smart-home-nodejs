@@ -27,6 +27,7 @@
     "request": "^2.85.0",
     "npm": "^6.0.0",
     "bcryptjs": "*",
-    "redis": "*"
+    "redis": "*",
+    "hat": "*"
   }
 }

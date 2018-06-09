@@ -27,40 +27,72 @@ Auth.getAccessToken = function(request) {
 Auth.getUid = function(request) {
     return request.headers.uid;
 };
+Auth.checkAuth = function(request,response,redir,checkRegistration) {
+    if (typeof redir=="undefined" || ! redir || !redir.length)
+        redir = '/frontend';
+    let authToken,uid,tok;
+    let error = 0;
+    if (!(authToken = Auth.getAccessToken(request)))
+        error = 1;
+    else if (!(tok = authstore.tokens[authToken]))
+        error = 2;
+    else if (!(tok = tok.token))
+        error = 7;
+    else if (tok.type!="access")
+        error = 5;
+    else if (tok.isExpired())
+        error = 6;
+    else if (!(uid = tok.uid))
+        error = 3;
+    else if (checkRegistration && !authstore.isUserRegistered(uid))
+        error = 4;
+    if (error) {
+        console.log('[CheckAuth] Auth error '+error+" at = "+authToken);
+        let path = require('util').format('/login?client_id=%s&redirect_uri=%s&state=%s',
+                require('./config-provider').smartHomeProviderGoogleClientId, encodeURIComponent(redir), 'cool_jazz');
+        response.status(400).set({
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        }).json({
+            'error': "invalid_grant",
+            'reason':"Cannot validate token: error is "+error,
+            'redir': redir
+        });
+        return null;
+    }
+    else
+        return uid;
+}
 
 const SmartHomeModel = {};
 
 SmartHomeModel.getAccessToken = function(code) {
-    let authCode = authstore.authcodes[code];
-    if (!authCode) {
-        console.error('invalid code');
-        return false;
-    }
-    if (new Date(authCode.expiresAt) < Date.now()) {
-        console.error('expired code');
-        return false;
-    }
-
-    let user = authstore.users[authCode.uid];
-    if (!user) {
-        console.error('could not find user');
-        return false;
-    }
-    let accessToken = authstore.tokens[user.tokens[0]];
-    console.log('getAccessToken = ', accessToken);
-    if (!accessToken || !accessToken.uid) {
-        console.error('could not find accessToken');
-        return false;
-    }
-
-    let returnToken = {
-        token_type: "bearer",
-        access_token: accessToken.accessToken,
-        refresh_token: accessToken.refreshToken
-    };
-
-    console.log('return getAccessToken = ', returnToken);
-    return returnToken;
+    return new Promise(function(resolve,reject) {
+        let authCode = authstore.authcodes[code],user;
+        if (!authCode)
+            reject('invalid code');
+        if (new Date(authCode.expiresAt) < Date.now())
+            reject('expired code');
+        else {
+            authstore.loadUserTokens(authCode.uid,authCode.clientId,["access","refresh"]).then(function(tokens){
+                let acctok;
+                if (!(acctok = tokens["access"]) || !tokens["refresh"])
+                    reject("Error generating tokens: "+JSON.stringify(tokens));
+                else {
+                    let returnToken = {
+                        token_type: "bearer",
+                        access_token: acctok.s,
+                        refresh_token: tokens['refresh'].s,
+                        expires_in: Math.floor((acctok.expire-Date.now())/1000)
+                    };
+                    console.log('return getAccessToken = ', returnToken);
+                    resolve(returnToken);
+                }
+            }).catch(function (err) {
+                reject("Cannot generate new access token: error "+err);
+            });
+        }
+    });
 };
 
 SmartHomeModel.getClient = function(clientId, clientSecret) {
@@ -119,7 +151,7 @@ Auth.registerAuth = function(app) {
         let state = req.query.state;
         let response_type = req.query.response_type;
         let authCode = req.query.code;
-
+        console.log('[OAUTH] Query ', JSON.stringify(req.query));
         if ('code' != response_type)
             return res.status(500).send('response_type ' + response_type + ' must equal "code"');
 
@@ -140,11 +172,11 @@ Auth.registerAuth = function(app) {
                 client_id, encodeURIComponent(redirect_uri), req.path, state));
         }
 
-        console.log('login successful ', user.name);
+        console.log('[OAUTH] login successful ', user.username);
         authCode = authstore.generateAuthCode(user.uid, client_id);
 
         if (authCode) {
-            console.log('authCode successful ', authCode);
+            console.log('[OAUTH] authCode successful ', authCode);
             return res.redirect(util.format('%s?code=%s&state=%s',
                 redirect_uri, authCode, state));
         }
@@ -194,43 +226,54 @@ Auth.registerAuth = function(app) {
             pw = req.body.password;
             enc = false;
         }
-        console.log("login enc "+enc+" "+req.body.username);
-        authstore.getUser(req.body.username, pw, enc).then(
-            function(user) {
-                console.log('logging in ', user);
-                req.session.user = user;
-                // Successful logins should send the user back to /oauth/.
-                //console.log("redir "+req.body.redirect);
-                //console.log("ook "+authstore.userobj[user.uid].optionsOk());
-                let path;
-                if (req.body.redirect && req.body.redirect.length)
-                    path = req.body.redirect;
-                else if (req.params.redirect && req.params.redirect.length)
-                    path = req.params.redirect;
-                else if (authstore.userobj[user.uid].optionsOk())
-                    path = '/frontend';
-                else
-                    path = '/options';
-                path = decodeURIComponent(path);
-
-                console.log('login successful ', user.name);
-                let authCode = authstore.generateAuthCode(user.uid, req.body.client_id);
-
-                if (authCode) {
-                    console.log('authCode successful ', authCode);
-                    return res.redirect(util.format('%s?code=%s&state=%s',
-                        path, authCode, req.body.state));
-                } else {
-                    console.log('authCode failed');
-                    return res.redirect(util.format('%s?client_id=%s&redirect_uri=%s&state=%s&response_type=code',
-                        path, req.body.client_id, encodeURIComponent(req.body.redirect_uri), req.body.state));
-                }
+        if (!pw || !req.body.username || !req.body.client_id || req.body.client_id=="undefined") {
+            let dec = function(a, b) {
+                return a && a.length && a!="undefined"? a : b;
             }
-        ).catch(function(err) {
-            console.log(err + ' not a user', req.body.username);
-            return res.redirect(util.format('%s?client_id=%s&redirect_uri=%s&state=%s&response_type=code',
-                '/frontend', req.body.client_id, encodeURIComponent(req.body.redirect_uri), req.body.state));
-        });
+            let config = require('./config-provider');
+            res.redirect(util.format('%s?client_id=%s&redirect_uri=%s&state=%s&response_type=code',
+                '/login', dec(req.body.client_id, config.smartHomeProviderGoogleClientId),
+                encodeURIComponent('/frontend'), dec(req.body.state,"redir_ok")));
+        }
+        else {
+            console.log("login enc "+enc+" "+req.body.username+" cl = "+req.body.client_id);
+            authstore.getUser(req.body.username, pw, enc,req.body.client_id).then(
+                function(user) {
+                    console.log('logging in ', user);
+                    req.session.user = user;
+                    // Successful logins should send the user back to /oauth/.
+                    //console.log("redir "+req.body.redirect);
+                    //console.log("ook "+authstore.userobj[user.uid].optionsOk());
+                    let path;
+                    if (req.body.redirect && req.body.redirect.length)
+                        path = req.body.redirect;
+                    else if (req.params.redirect && req.params.redirect.length)
+                        path = req.params.redirect;
+                    else if (authstore.userobj[user.uid].optionsOk())
+                        path = '/frontend';
+                    else
+                        path = '/options';
+                    path = decodeURIComponent(path);
+
+                    console.log('login successful ', user.username);
+                    let authCode = authstore.generateAuthCode(user.uid, req.body.client_id);
+
+                    if (authCode) {
+                        console.log('authCode successful ', authCode);
+                        return res.redirect(util.format('%s?code=%s&state=%s',
+                            path, authCode, req.body.state));
+                    } else {
+                        console.log('authCode failed');
+                        return res.redirect(util.format('%s?client_id=%s&redirect_uri=%s&state=%s&response_type=code',
+                            path, req.body.client_id, encodeURIComponent(req.body.redirect_uri), req.body.state));
+                    }
+                }
+            ).catch(function(err) {
+                console.log(err + ' not a user', req.body.username);
+                return res.redirect(util.format('%s?client_id=%s&redirect_uri=%s&state=%s&response_type=code',
+                    '/frontend', req.body.client_id, encodeURIComponent(req.body.redirect_uri), req.body.state));
+            });
+        }
     });
 
     /**
@@ -273,13 +316,26 @@ Auth.registerAuth = function(app) {
             return res.status(400).send('incorrect client data');
         }
 
-        if ('authorization_code' == grant_type)
-            return handleAuthCode(req, res);
-        else if ('refresh_token' == grant_type)
-            return handleRefreshToken(req, res);
+        if ('authorization_code' == grant_type) {
+            handleAuthCode(req).then(function(tok) {
+                return res.status(200).send(tok);
+            }).catch(function(reason) {
+                return res.status(400).send({"error": "invalid_grant","reason":reason});
+            });
+        }
+        else if ('refresh_token' == grant_type) {
+            handleRefreshToken(req).then(function(tok) {
+                return res.status(200).send(tok);
+            }).catch(function(reason) {
+                console.log("[Token] err reason "+reason);
+                return res.status(400).send({"error": "invalid_grant","reason":reason});
+            });
+        }
         else {
             console.error('grant_type ' + grant_type + ' is not supported');
-            return res.status(400).send('grant_type ' + grant_type + ' is not supported');
+            return res.status(400).send(
+                {"error": "invalid_grant",
+                "reason":'grant_type ' + grant_type + ' is not supported'});
         }
     });
 };
@@ -301,45 +357,46 @@ Auth.registerAuth = function(app) {
  *   refresh_token: "REFRESH_TOKEN"
  * }
  */
-function handleAuthCode(req, res) {
-    console.log('handleAuthCode', req.query);
-    let client_id = req.query.client_id ? req.query.client_id : req.body.client_id;
-    let client_secret = req.query.client_secret ? req.query.client_secret : req.body.client_secret;
-    let code = req.query.code ? req.query.code : req.body.code;
+function handleAuthCode(req) {
+    return new Promise(function(resolve,reject) {
+        console.log('handleAuthCode', req.query);
+        let client_id = req.query.client_id ? req.query.client_id : req.body.client_id;
+        let client_secret = req.query.client_secret ? req.query.client_secret : req.body.client_secret;
+        let code = req.query.code ? req.query.code : req.body.code;
 
-    let client = SmartHomeModel.getClient(client_id, client_secret);
+        let client = SmartHomeModel.getClient(client_id, client_secret);
+        let authCode;
 
-    if (!code) {
-        console.error('missing required parameter');
-        return res.status(400).send('missing required parameter');
-    }
-    if (!client) {
-        console.error('invalid client id or secret %s, %s', client_id, client_secret);
-        return res.status(400).send('invalid client id or secret');
-    }
-
-    let authCode = authstore.authcodes[code];
-    if (!authCode) {
-        console.error('invalid code');
-        return res.status(400).send('invalid code');
-    }
-    if (new Date(authCode.expiresAt) < Date.now()) {
-        console.error('expired code');
-        return res.status(400).send('expired code');
-    }
-    if (authCode.clientId != client_id) {
-        console.error('invalid code - wrong client', authCode);
-        return res.status(400).send('invalid code - wrong client');
-    }
-
-    let token = SmartHomeModel.getAccessToken(code);
-    if (!token) {
-        console.error('unable to generate a token', token);
-        return res.status(400).send('unable to generate a token');
-    }
-
-    console.log('respond success', token);
-    return res.status(200).json(token);
+        if (!code) {
+            console.error('missing required parameter');
+            reject('missing required parameter');
+        }
+        else if (!client) {
+            console.error('invalid client id or secret %s, %s', client_id, client_secret);
+            reject('invalid client id or secret');
+        }
+        else if (!(authCode = authstore.authcodes[code])) {
+            console.error('invalid code');
+            reject('invalid code');
+        }
+        else if (new Date(authCode.expiresAt) < Date.now()) {
+            console.error('expired code');
+            reject('expired code');
+        }
+        else if (authCode.clientId != client_id) {
+            console.error('invalid code - wrong client', authCode);
+            reject('invalid code - wrong client');
+        }
+        else {
+            SmartHomeModel.getAccessToken(code).then(function(token) {
+                console.log('respond success', token);
+                resolve(token);
+            }).catch(function(reason) {
+                console.error('unable to generate a token', reason);
+                reject(reason);
+            });
+        }
+    });
 }
 
 /**
@@ -349,25 +406,45 @@ function handleAuthCode(req, res) {
  *   access_token: "ACCESS_TOKEN",
  * }
  */
-function handleRefreshToken(req, res) {
-    let client_id = req.query.client_id ? req.query.client_id : req.body.client_id;
-    let client_secret = req.query.client_secret ? req.query.client_secret : req.body.client_secret;
-    let refresh_token = req.query.refresh_token ? req.query.refresh_token : req.body.refresh_token;
+function handleRefreshToken(req) {
+    return new Promise(function(resolve,reject) {
+        let client_id = req.query.client_id ? req.query.client_id : req.body.client_id;
+        let client_secret = req.query.client_secret ? req.query.client_secret : req.body.client_secret;
+        let refresh_token = req.query.refresh_token ? req.query.refresh_token : req.body.refresh_token;
 
-    let client = SmartHomeModel.getClient(client_id, client_secret);
-    if (!client) {
-        console.error('invalid client id or secret %s, %s', client_id, client_secret);
-        return res.status(500).send('invalid client id or secret');
-    }
+        let client = SmartHomeModel.getClient(client_id, client_secret),tok,uid;
+        if (!client)
+            reject('invalid client id or secret '+client_id+' '+client_secret);
+        else if (!refresh_token)
+            reject('missing required parameter');
+        else if (!(tok = authstore.tokens[refresh_token]))
+            reject('token not present in DB');
+        else if (!(tok = tok.token))
+            reject('token is not a valid token object');
+        else if (tok.client!=client_id)
+            reject('token is not for clientid '+client_id+' but for '+tok.client);
+        else if (tok.type!="refresh")
+            reject('token is not a refresh token');
+        else if (tok.isExpired())
+            reject('token is expired');
+        else if (!(uid = tok.uid))
+            reject('invalid user associated to the token');
+        else {
+            authstore.loadUserTokens(uid,client_id,['access']).then(function(toks) {
+                let acctok;
+                if (acctok = toks['access'])
+                    resolve({
+                        token_type: "bearer",
+                        access_token: acctok.s,
+                        expires_in: Math.floor((acctok.expire-Date.now())/1000)
+                    });
+                else
+                    reject('Cannot generate access token from refresh token');
+            }).catch(function(err) {
+                reject("Error generating access token from refresh token: "+err);
+            });
+        }
 
-    if (!refresh_token) {
-        console.error('missing required parameter');
-        return res.status(500).send('missing required parameter');
-    }
-
-    res.status(200).json({
-        token_type: "bearer",
-        access_token: refresh_token
     });
 }
 
@@ -383,3 +460,4 @@ function login(req, res) {
 exports.registerAuth = Auth.registerAuth;
 exports.getAccessToken = Auth.getAccessToken;
 exports.getUid = Auth.getUid;
+exports.checkAuth = Auth.checkAuth;

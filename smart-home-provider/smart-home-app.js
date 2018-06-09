@@ -40,8 +40,10 @@ function registerAgent(app) {
     let reqdata = request.body;
     console.log('post /smarthome', reqdata);
 
-    let authToken = authProvider.getAccessToken(request);
-    let uid = datastore.Auth.tokens[authToken].uid;
+    let uid = authProvider.checkAuth(request,response,'/login',false);
+    if (!uid)
+        return;
+    authToken = datastore.Auth.userobj[uid].tokens['access'].s;
 
     if (!reqdata.inputs) {
       response.status(401).set({
