@@ -3,26 +3,15 @@ const redis_client = require('./redisconf');
 var Client = (function(){
     var Client = function (us) {
         var that = this;
-        that._id = us.hasOwnProperty('_id')?us._id:null;
 		that.stringid = us.hasOwnProperty('stringid')?us.stringid:null;
 		that.apikey = us.hasOwnProperty('apikey')?us.apikey:null;
         that.secret = us.hasOwnProperty('secret')?us.secret:null;
         that.username = us.hasOwnProperty('username')?us.username:null;
 
 		that.save = function() {
-            let setMaxId = function(nextid) {
+            let hmSetClient = function() {
                 return new Promise(function(resolve1,reject1) {
-                    redis_client.set("client:maxid",""+(nextid+1),function(err2,resSet2) {
-                        if (err2 || resSet2.indexOf("OK")<0)
-                            reject1(err2?err2:1000);
-                        else
-                            resolve1(that);
-                    });
-                });
-            }
-            let hmSetClient = function(nextid) {
-                return new Promise(function(resolve1,reject1) {
-                    redis_client.hmset("client:"+nextid,
+                    redis_client.hmset("client:"+that.stringid,
                         "stringid", that.stringid,
                         "username", that.username,
                         "apikey", that.apikey,
@@ -62,20 +51,11 @@ var Client = (function(){
                         if (taken2)
                             throw 2500;
                         else {
-                            var nextid = 0;
-                            return Client.getMaxId()
-                                .then(function(nid) {
-                                    nextid = nid;
-                                    that._id = nid;
-                                    return setMaxId(nextid);
+                            return hmSetClient()
+                                  .then(function(cl) {
+                                    return vSadd(that.stringid,"client:validclients",3000);
                                 }).then(function(cl) {
-                                    return hmSetClient(nextid);
-                                }).then(function(cl) {
-                                    return vSadd(nextid,"client:validclients",3000);
-                                }).then(function(cl) {
-                                    return vSet(nextid,"client:stringid:"+that.stringid,6000);
-                                }).then(function(cl) {
-                                    return vSet(nextid,"client:username:"+that.username,7000);
+                                    return vSet(that.stringid,"client:username:"+that.username,7000);
                                 });
                         }
                     });
@@ -83,19 +63,9 @@ var Client = (function(){
             });
         }
     };
-    Client.getMaxId = function() {
-        return new Promise(function (resolve1,reject1) {
-            redis_client.get("client:maxid", function (err1, maxid) {
-                if (maxid==null)
-                    maxid = '0';
-                let nextid = parseInt(maxid);
-                resolve1(nextid);
-            });
-        });
-    };
     Client.stringidTaken = function(us) {
         return new Promise(function (resolve1,reject1) {
-            redis_client.get("client:stringid:"+us, function (err1, maxid) {
+            redis_client.get("client:"+us, function (err1, maxid) {
                 resolve1(maxid!=null);
             });
         });
@@ -108,7 +78,7 @@ var Client = (function(){
         });
     };
 	Client.removeById = function(id) {
-        function getClientById() {
+        let getClientById = function() {
             return new Promise(function(resolve1,reject1) {
                 redis_client.hgetall("client:"+id,function(err0,resHget0) {
         			if (err0 || !resHget0)
@@ -118,7 +88,7 @@ var Client = (function(){
                 });
             });
         }
-        function delSomething(what,err) {
+        let delSomething = function(what,err) {
             return new Promise(function(resolve1,reject1) {
                 redis_client.del(what,function(err0,resDel) {
         			if ((err0 || !resDel) && err)
@@ -128,7 +98,7 @@ var Client = (function(){
                 });
             });
         }
-        function sremSomething(what,item,err) {
+        let sremSomething = function(what,item,err) {
             return new Promise(function(resolve1,reject1) {
                 redis_client.srem(what,item,function(err0,resDel) {
         			if (err0 || !resDel)
@@ -145,8 +115,6 @@ var Client = (function(){
         }).then(function() {
             return delSomething("client:"+id,3000);
         }).then(function() {
-            return delSomething("client:stringid:"+foundClient["stringid"],4000);
-        }).then(function() {
             return delSomething("client:username:"+foundClient["username"],5000);
         });
 	};
@@ -157,7 +125,7 @@ var Client = (function(){
         });
 	};
 	Client.findById = function(id) {
-		return Client.findOne({"_id":id});
+		return Client.findOne({"stringid":id});
 	};
     Client.findByUsername = function(id) {
 		return Client.findOne({"username":id});
@@ -179,7 +147,6 @@ var Client = (function(){
                     let myid = res0[idx]
 					redis_client.hgetall("client:"+myid,function(err1,res1) {
 						if (!err1 && res1) {
-                            Object.assign(res1, {"_id":myid});
 							out.push(new Client(res1));
 							console.log(JSON.stringify(res1));
                         }
@@ -192,8 +159,8 @@ var Client = (function(){
 				funadd(0);
             }
 		};
-		if (obj.hasOwnProperty('_id') && obj._id!==null) {
-			return searchall(null,[obj._id]);
+		if (obj.hasOwnProperty('stringid') && obj.stringid!==null) {
+			return searchall(null,[obj.stringid]);
 		}
 		else {
             let ks = Object.keys(obj);
@@ -202,14 +169,7 @@ var Client = (function(){
                 if (n<ks.length) {
                     redis_client.get("client:"+ks[n]+":"+obj[ks[n]],function (err3,res3) {
                         if (!err3 && res3!==null) {
-                            let id = 0;
-                            try {
-                                id = parseInt(res3);
-                                listids.push(id);
-                            }
-                            catch(err) {
-                                console.log(err.stack);
-                            }
+                            listids.push(res3);
                         }
                         src(n+1);
                     });
