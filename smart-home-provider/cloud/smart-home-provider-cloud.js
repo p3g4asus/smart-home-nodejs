@@ -926,9 +926,9 @@ function cloudInit() {
     app.requestSync = function(uid) {
         // REQUEST_SYNC
         var ts = Date.now();
-        if (lastRequestSync && ts - lastRequestSync < 20000)
+        if (lastRequestSync && ts - lastRequestSync < 7000)
             return;
-        //lastRequestSync = ts;
+        lastRequestSync = ts;
         const apiKey = config.smartHomeProviderApiKey;
         const options = {
             method: 'POST',

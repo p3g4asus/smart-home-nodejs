@@ -478,6 +478,10 @@ limitations under the License.
             type: Array,
             value: [],
           },
+          devices: {
+            type: Array,
+            value: [],
+          },
         };
       }
 
@@ -585,7 +589,7 @@ limitations under the License.
             }
             console.log(this.devices);
             this._handleRefresh();
-          });
+        }.bind(this));
       }
 
       /**
@@ -602,56 +606,56 @@ limitations under the License.
             //this.devices[id].states.online = false;
             switch (this.devices[id].properties.type) {
               case 'action.devices.types.LIGHT':
-                this.app._addLight(this.devices[id]);
+                this._addLight(this.devices[id]);
                 break;
               case 'action.devices.types.THERMOSTAT':
-                this.app._addThermostat(this.devices[id]);
+                this._addThermostat(this.devices[id]);
                 break;
               case 'action.devices.types.SCENE':
-                this.app._addScene(this.devices[id]);
+                this._addScene(this.devices[id]);
                 break;
               case 'action.devices.types.CAMERA':
-                this.app._addCamera(this.devices[id]);
+                this._addCamera(this.devices[id]);
                 break;
               case 'action.devices.types.VACUUM':
                 this.devices[id].states.isRunning = false;
                 this.devices[id].states.isPaused = false;
-                this.app._addVacuum(this.devices[id]);
+                this._addVacuum(this.devices[id]);
                 break;
               case 'action.devices.types.WASHER':
                 this.devices[id].states.isRunning = false;
                 this.devices[id].states.isPaused = false;
-                this.app._addWasher(this.devices[id]);
+                this._addWasher(this.devices[id]);
                 break;
               case 'action.devices.types.REFRIGERATOR':
-                this.app._addRefrigerator(this.devices[id]);
+                this._addRefrigerator(this.devices[id]);
                 break;
               case 'action.devices.types.FAN':
-                this.app._addFan(this.devices[id]);
+                this._addFan(this.devices[id]);
                 break;
               case 'action.devices.types.KETTLE':
-                this.app._addKettle(this.devices[id]);
+                this._addKettle(this.devices[id]);
                 break;
               case 'action.devices.types.COFFEE_MAKER':
-                this.app._addCoffeeMaker(this.devices[id]);
+                this._addCoffeeMaker(this.devices[id]);
                 break;
               case 'action.devices.types.OUTLET':
-                this.app._addOutlet(this.devices[id]);
+                this._addOutlet(this.devices[id]);
                 break;
               case 'action.devices.types.SWITCH':
-                this.app._addSwitch(this.devices[id]);
+                this._addSwitch(this.devices[id]);
                 break;
               case 'action.devices.types.AIRPURIFIER':
-                this.app._addAirPurifier(this.devices[id]);
+                this._addAirPurifier(this.devices[id]);
                 break;
               case 'action.devices.types.AC_UNIT':
-                this.app._addAcUnit(this.devices[id]);
+                this._addAcUnit(this.devices[id]);
                 break;
               case 'action.devices.types.OVEN':
-                this.app._addOven(this.devices[id]);
+                this._addOven(this.devices[id]);
                 break;
               case 'action.devices.types.SPRINKLER':
-                this.app._addSprinkler(this.devices[id]);
+                this._addSprinkler(this.devices[id]);
                 break;
               default:
                 console.warn(`Unable to handle unknown device type` +

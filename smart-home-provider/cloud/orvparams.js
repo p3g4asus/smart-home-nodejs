@@ -666,9 +666,9 @@ function processMessage(uid,msg,res) {
                         d.states.on = false;
                     }
                     else if (d.properties.deviceInfo.model=="remotevol") {
-                        if (d.states.on)
+                        if (!d.states.on)
                             modd = true;
-                        d.states.on = false;
+                        d.states.on = true;
                     }
                     var newkeys = [];
                     var lastNum = "";
@@ -740,13 +740,16 @@ function processMessage(uid,msg,res) {
                             console.log("Change on device "+JSON.stringify(d));
                         }
                         else if (d.properties.deviceInfo.model=="remotevol") {
-                            var m = remoteVolumeRegexp.exec(k.name);
+                            /*var m = remoteVolumeRegexp.exec(k.name);
                             if (m) {
                                 d.states.on = true;
                                 modd = true;
                                 idx = ((m[2]=='-'?-1:1)*parseInt(m[1])*k.num)+50;
-                                d.states.brightness = idx;
-                            }
+                                d.states.brightness = 50;
+                            }*/
+                            d.states.on = true;
+                            d.states.brightness = 50;
+                            modd = true;
                             console.log("Change on device "+JSON.stringify(d));
                         }
                     });
@@ -862,7 +865,7 @@ function initUserDevices(user,test,force) {
         test = false;
     if (test || !(ud = DBData[uid]) || !(cli = ud['client']) || force) {
         if (cli)
-            cli.disonnect();
+            cli.disconnect();
         cli = new tcpclient.MFZClient(uid,user.options.orvhost,user.options.orvport,user.options.orvretry);
         if (!test) {
             DBData[uid] = {'user':user,'client':cli};

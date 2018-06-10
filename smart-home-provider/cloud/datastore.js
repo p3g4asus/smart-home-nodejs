@@ -560,6 +560,7 @@ Data.execDevice = function(uid, device) {
             states: {},
             properties: {},
             executionStates: [],
+            reportStates: [],
         };
     if (device.hasOwnProperty('properties')) {
         // update properties
@@ -582,6 +583,10 @@ Data.execDevice = function(uid, device) {
     if (device.hasOwnProperty('executionStates')) {
         // update array of states
         Data[uid][device.id].executionStates = device.executionStates;
+    }
+    if (device.hasOwnProperty('reportStates')) {
+        // update array of states
+        Data[uid][device.id].reportStates = device.reportStates;
     }
     // console.log('execDevice after', Data[uid][device.id]);
     Data.version++;
