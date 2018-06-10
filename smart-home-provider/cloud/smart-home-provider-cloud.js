@@ -847,28 +847,15 @@ function cloudInit() {
         });
     }
 
-    app.modDeviceV0 = function(uid, device) {
-        return datastore.Auth.loadUserTokens(uid,config.smartHomeProviderGoogleClientId,["access"]).then(function(token) {
-            if (token['access']) {
-                const options = {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + token['access'].s
-                    }
-                };
-                options.body = JSON.stringify(device);
-                fetch("http://localhost:"+config.devPortSmartHome + '/smart-home-api/exec', options);
-            }
-        },function(e) {
-            if (e.stack)
-                console.log(e.stack);
-            else
-                console.log("[modDevice error] Error detected: "+e);
-        });
+    app.modDeviceV1 = function(uid,devices) {
+        return app.modDeviceLnk(uid,devices,'/smart-home-api/report-state');
     }
 
-    app.modDevice = function(uid, devices) {
+    app.modDeviceV0 = function(uid,devices) {
+        return app.modDeviceLnk(uid,devices,'/smart-home-api/exec');
+    }
+
+    app.modDeviceLnk = function(uid, devices, lnk) {
         let resolve,reject;
         let prom = new Promise(function(res,rej) {
             resolve = res;
@@ -883,7 +870,7 @@ function cloudInit() {
                         'Authorization': 'Bearer ' + token['access'].s
                     }
                 };
-                let urltoFetch = 'http://localhost:' + config.devPortSmartHome + '/smart-home-api/report-state';
+                let urltoFetch = 'http://localhost:' + config.devPortSmartHome + lnk;
                 let outPromise = [];
 
                 let fetchDevice = function(idx) {
@@ -1055,7 +1042,7 @@ function cloudInit() {
         appPort = parseInt(appPort);
     orv.configureModule(
         app.addDevice,
-        app.modDevice,
+        app.modDeviceV1,
         app.removeDevice,
         config.getInside("AUTOLOGIN")=="YES"?app.autoLogin:null).catch(function(err) {
             console.log("[ConfigureModule err] Error "+err);
