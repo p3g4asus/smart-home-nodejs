@@ -1322,7 +1322,7 @@ var remoteVolumeTemplate = {
                 "volume"
             ]
         },
-        "willReportState": false,
+        "willReportState": true,
         "roomHint": "",
         "deviceInfo": {
             "manufacturer": "MFZ",
@@ -1369,7 +1369,7 @@ var remoteBigNumTemplate = {
                 "%offset%"
             ]
         },
-        "willReportState": false,
+        "willReportState": true,
         "roomHint": "",
         "deviceInfo": {
             "manufacturer": "MFZ",
@@ -1417,7 +1417,7 @@ var remoteNumTemplate = {
                 "$remotenick$"
             ]
         },
-        "willReportState": false,
+        "willReportState": true,
         "roomHint": "",
         "deviceInfo": {
             "manufacturer": "MFZ",
@@ -1465,7 +1465,7 @@ var remoteNumTemplate = {
                 "$remotenick$"
             ]
         },
-        "willReportState": false,
+        "willReportState": true,
         "roomHint": "hallway",
         "deviceInfo": {
             "manufacturer": "Smart Home Provider",
@@ -1505,7 +1505,7 @@ var remoteKeyTemplate = {
                 "$keynick$"
             ]
         },
-        "willReportState": false,
+        "willReportState": true,
         "roomHint": "",
         "deviceInfo": {
             "manufacturer": "MFZ",
@@ -1549,7 +1549,7 @@ var remoteSwitchTemplate = {
                 "$devicenick$"
             ]
         },
-        "willReportState": false,
+        "willReportState": true,
         "roomHint": "",
         "deviceInfo": {
             "manufacturer": "MFZ",
