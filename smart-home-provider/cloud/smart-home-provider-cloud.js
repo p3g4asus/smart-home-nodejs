@@ -855,6 +855,12 @@ function cloudInit() {
         return app.modDeviceLnk(uid,devices,'/smart-home-api/exec');
     }
 
+    app.modDeviceV2 = function(uid,devices) {
+        return app.modDeviceV0(uid,devices).then(function(outVals) {
+            return app.modDeviceV1(uid,devices);
+        });
+    }
+
     app.modDeviceLnk = function(uid, devices, lnk) {
         let resolve,reject;
         let prom = new Promise(function(res,rej) {
@@ -1042,7 +1048,7 @@ function cloudInit() {
         appPort = parseInt(appPort);
     orv.configureModule(
         app.addDevice,
-        app.modDeviceV1,
+        app.modDeviceV2,
         app.removeDevice,
         config.getInside("AUTOLOGIN")=="YES"?app.autoLogin:null).catch(function(err) {
             console.log("[ConfigureModule err] Error "+err);

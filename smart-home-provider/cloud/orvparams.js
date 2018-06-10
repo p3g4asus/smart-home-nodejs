@@ -395,14 +395,23 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                         devicesModded.push(ud["devices"][parseInt(key)]);
                     }
                 });
-                if (exports.onMod)
-                    exports.onMod(uid,devicesModded);
+                devMod(uid,devicesModded);
             }
         }
         catch (e) {
             console.log(e.stack);
         }
     }
+}
+
+function devMod(uid,devicesModded) {
+    if (exports.onMod)
+        exports.onMod(uid,devicesModded).then(function(outt) {
+            console.log("[devMod] OK "+JSON.stringify(outt));
+        }).catch(function(err) {
+
+            console.log("[devMod] err "+(err.stack?err.stack:""));
+        });
 }
 
 function cloneFromTemplate(templ, repl) {
@@ -631,8 +640,7 @@ function processMessage(uid,msg,res) {
                             let st = dev.state==1;
                             if (st!=d.states.on) {
                                 d.states.on = st;
-                                if (exports.onMod)
-                                    exports.onMod(uid,[d]);
+                                devMod(uid,[d]);
                                 console.log("Change on device "+JSON.stringify(d));
                             }
                             return true;
@@ -742,8 +750,8 @@ function processMessage(uid,msg,res) {
                             console.log("Change on device "+JSON.stringify(d));
                         }
                     });
-                    if (modd && exports.onMod)
-                        exports.onMod(uid,[d]);
+                    if (modd)
+                        devMod(uid,[d]);
                 });
             }
         }
@@ -1332,6 +1340,10 @@ var remoteVolumeTemplate = {
         "online": true,
         "brightness": 50
     },
+    "executionStates": [
+      "on",
+      "brightness",
+    ],
     "reportStates": [
       "on",
       "brightness",
@@ -1376,6 +1388,10 @@ var remoteBigNumTemplate = {
         "online": true,
         "brightness": 50
     },
+    "executionStates": [
+      "on",
+      "brightness",
+    ],
     "reportStates": [
       "on",
       "brightness",
@@ -1420,6 +1436,10 @@ var remoteNumTemplate = {
         "online": true,
         "brightness": 50
     },
+    "executionStates": [
+      "on",
+      "brightness",
+    ],
     "reportStates": [
       "on",
       "brightness",
@@ -1503,6 +1523,9 @@ var remoteKeyTemplate = {
         "on": false,
         "online": true
     },
+    "executionStates": [
+      "on"
+    ],
     "reportStates": [
       "on"
     ],
@@ -1542,6 +1565,9 @@ var remoteSwitchTemplate = {
         "on": false,
         "online": true
     },
+    "executionStates": [
+      "on"
+    ],
     "reportStates": [
       "on"
     ],
