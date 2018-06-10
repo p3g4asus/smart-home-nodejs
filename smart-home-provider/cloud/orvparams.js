@@ -293,7 +293,7 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                         dev.states.on = true;
                         let remoteObj;
                         let remotes = ud["devicetable"].remote;
-                        let volk = getRemoteVolumeKey(statesObj.brightness,remoteObj = remotes[defRemote]);
+                        let volk = getRemoteVolumeKey(statesObj.brightness,remoteObj = remotes[currentremote]);
                         if (!volk) {
                             Object.keys(remotes).some(function (remn) {
                                 if (remotes.hasOwnProperty(remn)) {
@@ -357,7 +357,7 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                     let key = dev.properties.customData.key;
                     if (key.charAt(0)!='@') {
                         let remotes = ud["devicetable"].remote;
-                        let remoteObj = remotes[defRemote];
+                        let remoteObj = remotes[currentremote];
                         if (remoteObj.keys.indexOf(key)<0) {
                             Object.keys(remotes).some(function (remn) {
                                 if (remotes.hasOwnProperty(remn)) {
@@ -389,12 +389,14 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                     ud["currentremote"] = currentremote;
                     Object.assign(listSync, replaceRemote(ud["devices"],defDevice,defRemote,ud.user.options.language));
                 }
+                let devicesModded = [];
                 Object.keys(listSync).forEach(function (key) {
                     if (listSync.hasOwnProperty(key)) {
-                        if (exports.onMod)
-                            exports.onMod(uid,ud["devices"][parseInt(key)]);
+                        devicesModded.push(ud["devices"][parseInt(key)]);
                     }
                 });
+                if (exports.onMod)
+                    exports.onMod(uid,devicesModded);
             }
         }
         catch (e) {
@@ -630,7 +632,7 @@ function processMessage(uid,msg,res) {
                             if (st!=d.states.on) {
                                 d.states.on = st;
                                 if (exports.onMod)
-                                    exports.onMod(uid,d);
+                                    exports.onMod(uid,[d]);
                                 console.log("Change on device "+JSON.stringify(d));
                             }
                             return true;
@@ -642,7 +644,7 @@ function processMessage(uid,msg,res) {
             //mettere a off tutte le key della stessa device
             //mettere a on le key presente di questa device
             //mettere a running il remoteNum relativo al telecomando usato
-            if (msg=="ActionEmitir") {
+            else if (msg=="ActionEmitir") {
                 devices.forEach(function(d) {
                     var modd = false;
                     if (d.properties.deviceInfo.model=="remotenum" && d.properties.customData["offset"]==0) {
@@ -741,7 +743,7 @@ function processMessage(uid,msg,res) {
                         }
                     });
                     if (modd && exports.onMod)
-                        exports.onMod(uid,d);
+                        exports.onMod(uid,[d]);
                 });
             }
         }
@@ -1296,123 +1298,135 @@ function getRemoteVolumeKey(brightn,remoteObj) {
     return remoteObj.volumekeys.indexOf(volk)>=0?volk+"#"+intval:null;
 }
 
-var remoteVolumeTemplate =  {
-    "properties" : {
+var remoteVolumeTemplate = {
+    "properties": {
         "type": "action.devices.types.LIGHT",
         "traits": [
-          "action.devices.traits.OnOff",
-          'action.devices.traits.Brightness'
+            "action.devices.traits.OnOff",
+            'action.devices.traits.Brightness'
         ],
         "name": {
-          "defaultNames": [
-            "Smart Light"
-          ],
-          "name": "volume",
-          "nicknames": [
-            "volume"
-          ]
+            "defaultNames": [
+                "Smart Light"
+            ],
+            "name": "volume",
+            "nicknames": [
+                "volume"
+            ]
         },
         "willReportState": false,
         "roomHint": "",
         "deviceInfo": {
-          "manufacturer": "MFZ",
-          "model": "remotevol",
-          "swVersion": "$version$",
-          "hwVersion": "1.1"
+            "manufacturer": "MFZ",
+            "model": "remotevol",
+            "swVersion": "$version$",
+            "hwVersion": "1.1"
         },
         "customData": {
-          "remote":"$remote$",
-          "device":"$device$"
-        }
+            "remote": "$remote$",
+            "device": "$device$"
+        },
     },
-    "states" : {
-        "on":false,
-        "online":true,
+    "states": {
+        "on": false,
+        "online": true,
         "brightness": 50
     },
+    "reportStates": [
+      "on",
+      "brightness",
+    ],
     "nameChanged": false,
     "id": "%didx%",
-    "wait":true
+    "wait": true
 };
 
-var remoteBigNumTemplate =  {
-    "properties" : {
+var remoteBigNumTemplate = {
+    "properties": {
         "type": "action.devices.types.LIGHT",
         "traits": [
-          "action.devices.traits.OnOff",
-          'action.devices.traits.Brightness'
+            "action.devices.traits.OnOff",
+            'action.devices.traits.Brightness'
         ],
         "name": {
-          "defaultNames": [
-            "Smart Light"
-          ],
-          "name": "r$didx$",
-          "nicknames": [
-            "%offset%"
-          ]
+            "defaultNames": [
+                "Smart Light"
+            ],
+            "name": "r$didx$",
+            "nicknames": [
+                "%offset%"
+            ]
         },
         "willReportState": false,
         "roomHint": "",
         "deviceInfo": {
-          "manufacturer": "MFZ",
-          "model": "remotenum",
-          "swVersion": "$version$",
-          "hwVersion": "1.1"
+            "manufacturer": "MFZ",
+            "model": "remotenum",
+            "swVersion": "$version$",
+            "hwVersion": "1.1"
         },
         "customData": {
-          "remote":"$remote$",
-          "device":"$device$",
-          "offset":"$offset$"
+            "remote": "$remote$",
+            "device": "$device$",
+            "offset": "$offset$"
         }
     },
-    "states" : {
-        "on":false,
-        "online":true,
+    "states": {
+        "on": false,
+        "online": true,
         "brightness": 50
     },
+    "reportStates": [
+      "on",
+      "brightness",
+    ],
     "nameChanged": false,
     "id": "%didx%",
-    "wait":true
+    "wait": true
 };
 
-var remoteNumTemplate =  {
-    "properties" : {
+var remoteNumTemplate = {
+    "properties": {
         "type": "action.devices.types.LIGHT",
         "traits": [
-          "action.devices.traits.OnOff",
-          'action.devices.traits.Brightness'
+            "action.devices.traits.OnOff",
+            'action.devices.traits.Brightness'
         ],
         "name": {
-          "defaultNames": [
-            "Smart Light"
-          ],
-          "name": "r$didx$",
-          "nicknames": [
-            "$remotenick$"
-          ]
+            "defaultNames": [
+                "Smart Light"
+            ],
+            "name": "r$didx$",
+            "nicknames": [
+                "$remotenick$"
+            ]
         },
         "willReportState": false,
         "roomHint": "",
         "deviceInfo": {
-          "manufacturer": "MFZ",
-          "model": "remotenum",
-          "swVersion": "$version$",
-          "hwVersion": "1.1"
+            "manufacturer": "MFZ",
+            "model": "remotenum",
+            "swVersion": "$version$",
+            "hwVersion": "1.1"
         },
         "customData": {
-          "remote":"$remote$",
-          "device":"$device$",
-          "offset":0
+            "remote": "$remote$",
+            "device": "$device$",
+            "offset": 0
         }
     },
-    "states" : {
-        "on":false,
-        "online":true,
+    "states": {
+        "on": false,
+        "online": true,
         "brightness": 50
     },
+    "reportStates": [
+      "on",
+      "brightness",
+    ],
     "nameChanged": false,
     "id": "%didx%",
-    "wait":true
+    "wait": true
 };
 
 /*var remoteNumTemplate = {
@@ -1456,76 +1470,82 @@ var remoteNumTemplate =  {
     "nameChanged": false
 };*/
 
-var remoteKeyTemplate =  {
-    "properties" : {
-        "type": "action.devices.types.LIGHT",
-        "traits": [
-          "action.devices.traits.OnOff",
-        ],
-        "name": {
-          "defaultNames": [
-            "Smart Light"
-          ],
-          "name": "K$didx$",
-          "nicknames": [
-            "$keynick$"
-          ]
-        },
-        "willReportState": false,
-        "roomHint": "",
-        "deviceInfo": {
-          "manufacturer": "MFZ",
-          "model": "remotekey",
-          "swVersion": "$version$",
-          "hwVersion": "1.1"
-        },
-        "customData": {
-          "key": "$key$",
-          "remote":"$remote$",
-          "device":"$device$"
-        }
-    },
-    "states" : {
-        "on":false,
-        "online":true
-    },
-    "nameChanged": false,
-    "id": "%didx%",
-    "wait":true
-};
-
-var remoteSwitchTemplate =  {
+var remoteKeyTemplate = {
     "properties": {
         "type": "action.devices.types.LIGHT",
         "traits": [
-          "action.devices.traits.OnOff",
+            "action.devices.traits.OnOff",
         ],
         "name": {
-          "defaultNames": [
-            "Smart Light"
-          ],
-          "name": "S$didx$",
-          "nicknames": [
-            "$devicenick$"
-          ]
+            "defaultNames": [
+                "Smart Light"
+            ],
+            "name": "K$didx$",
+            "nicknames": [
+                "$keynick$"
+            ]
         },
         "willReportState": false,
         "roomHint": "",
         "deviceInfo": {
-          "manufacturer": "MFZ",
-          "model": "switch",
-          "swVersion": "$version$",
-          "hwVersion": "1.1"
+            "manufacturer": "MFZ",
+            "model": "remotekey",
+            "swVersion": "$version$",
+            "hwVersion": "1.1"
         },
         "customData": {
-          "device":"$device$"
+            "key": "$key$",
+            "remote": "$remote$",
+            "device": "$device$"
         }
     },
-    "states" : {
-        "on":false,
-        "online":true
+    "states": {
+        "on": false,
+        "online": true
     },
+    "reportStates": [
+      "on"
+    ],
     "nameChanged": false,
     "id": "%didx%",
-    "wait":true
+    "wait": true
+};
+
+var remoteSwitchTemplate = {
+    "properties": {
+        "type": "action.devices.types.LIGHT",
+        "traits": [
+            "action.devices.traits.OnOff",
+        ],
+        "name": {
+            "defaultNames": [
+                "Smart Light"
+            ],
+            "name": "S$didx$",
+            "nicknames": [
+                "$devicenick$"
+            ]
+        },
+        "willReportState": false,
+        "roomHint": "",
+        "deviceInfo": {
+            "manufacturer": "MFZ",
+            "model": "switch",
+            "swVersion": "$version$",
+            "hwVersion": "1.1"
+        },
+        "customData": {
+            "device": "$device$"
+        }
+    },
+    "states": {
+        "on": false,
+        "online": true
+    },
+    "reportStates": [
+      "on"
+    ],
+    "nameChanged": false,
+    "id": "%didx%",
+    "wait": true
 };

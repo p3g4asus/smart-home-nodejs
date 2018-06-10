@@ -847,7 +847,7 @@ function cloudInit() {
         });
     }
 
-    app.modDevice = function(uid, device) {
+    app.modDeviceV0 = function(uid, device) {
         return datastore.Auth.loadUserTokens(uid,config.smartHomeProviderGoogleClientId,["access"]).then(function(token) {
             if (token['access']) {
                 const options = {
@@ -866,6 +866,66 @@ function cloudInit() {
             else
                 console.log("[modDevice error] Error detected: "+e);
         });
+    }
+
+    app.modDevice = function(uid, devices) {
+        let resolve,reject;
+        let prom = new Promise(function(res,rej) {
+            resolve = res;
+            reject = rej;
+        });
+        datastore.Auth.loadUserTokens(uid,config.smartHomeProviderGoogleClientId,["access"]).then(function(token) {
+            if (token['access']) {
+                let options = {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token['access'].s
+                    }
+                };
+                let urltoFetch = 'http://localhost:' + config.devPortSmartHome + '/smart-home-api/report-state';
+                let outPromise = [];
+
+                let fetchDevice = function(idx) {
+                    if (idx<devices.length) {
+                        let device = devices[idx];
+                        options.body = JSON.stringify(device);
+                        fetch(urltoFetch, options)
+                        .then(res => res.json())
+                        .then(json => {
+                            console.log("[ModDevice json] "+JSON.stringify(json));
+                            outPromise.push({
+                                "dev":device,
+                                "stat":JSON.stringify(json),
+                                "err":null
+                            });
+                            fetchDevice(idx+1);
+                        })
+                        .catch(err => {
+                            console.log("[ModDevice err] "+err);
+                            outPromise.push({
+                                "dev":device,
+                                "stat":-1,
+                                "err":err
+                            });
+                            fetchDevice(idx+1);
+                        });
+                    }
+                    else
+                        resolve(outPromise);
+                }
+                fetchDevice(0);
+            }
+            else
+                reject([]);
+        },function(e) {
+            if (e.stack)
+                console.log(e.stack);
+            else
+                console.log("[modDevice error] Error detected: "+e);
+            reject([]);
+        });
+        return prom;
     }
 
     var lastRequestSync = 0;
@@ -894,6 +954,101 @@ function cloudInit() {
             console.log("request-sync response", res.status, res.statusText);
         });
     };
+
+    /**
+     * Pushes the current state of a device to the HomeGraph
+     */
+    app.post('/smart-home-api/report-state', (request, response) => {
+
+        if (!(uid = authProvider.checkAuth(request,response,'/login',true)))
+            return;
+        let authToken = datastore.Auth.userobj[uid].tokens['access'].s;
+
+        let device = request.body;
+        app.reportState(authToken, uid, device);
+
+        // otherwise, all good!
+        response.status(200)
+            .set({
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+            })
+            .send({
+                status: 'OK'
+            });
+    });
+
+
+    app.reportState = (authToken, uid, device) => {
+        const https = require('https');
+        const {
+            google
+        } = require('googleapis');
+        const jwtClient = new google.auth.JWT(
+            config.jwt.client_email,
+            null,
+            config.jwt.private_key, ['https://www.googleapis.com/auth/homegraph'],
+            null
+        );
+
+        const reportedStates = {};
+        if (!device.reportStates) {
+            console.warn(`Device ${device.id} has no states to report`);
+            return;
+        }
+        device.reportStates.map((key) => {
+            reportedStates[key] = device.states[key];
+        });
+        const postData = {
+            requestId: datastore.Auth.genRandomString(), // Any unique ID
+            agentUserId: uid,
+            payload: {
+                devices: {
+                    states: {
+                        [device.id]: reportedStates,
+                    },
+                },
+            },
+        };
+
+        console.log('Report State request', JSON.stringify(postData));
+
+        jwtClient.authorize((err, tokens) => {
+            if (err) {
+                console.error(err);
+                return;
+            }
+            const options = {
+                hostname: 'homegraph.googleapis.com',
+                port: 443,
+                path: '/v1/devices:reportStateAndNotification',
+                method: 'POST',
+                headers: {
+                    Authorization: ` Bearer ${tokens.access_token}`,
+                },
+            };
+            return new Promise((resolve, reject) => {
+                let responseData = '';
+                const req = https.request(options, (res) => {
+                    res.on('data', (d) => {
+                        responseData += d.toString();
+                    });
+                    res.on('end', () => {
+                        resolve(responseData);
+                    });
+                });
+                req.on('error', (e) => {
+                    reject(e);
+                });
+                // Write data to request body
+                req.write(JSON.stringify(postData));
+                req.end();
+            }).then((data) => {
+                console.info('Report State response', data);
+            });
+        });
+    };
+
 
     let appPort = process.env.PORT || config.devPortSmartHome;
     if (typeof appPort=="string")

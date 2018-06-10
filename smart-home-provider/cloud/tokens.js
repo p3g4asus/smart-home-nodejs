@@ -27,7 +27,7 @@ var Token = (function(){
             });
             Token._removeFromSet(that.s).then(function() {
                 redis_client.del("token:"+that.s,function(err0,res0) {
-                    if ((err0 || !res0) && err)
+                    if ((err0 || !res0) && err0)
                         reject(400);
                     else {
                         redis_client.srem("token:uid:"+that.uid,that.s,function(err0,resDel) {

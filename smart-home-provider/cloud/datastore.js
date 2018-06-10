@@ -10,6 +10,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+/* eslint require-jsdoc: "off" */
+/* eslint valid-jsdoc: "off" */
+
 /**
  * Structure of Data
  * {
@@ -554,7 +558,8 @@ Data.execDevice = function(uid, device) {
     if (!Data[uid][device.id])
         Data[uid][device.id] = {
             states: {},
-            properties: {}
+            properties: {},
+            executionStates: [],
         };
     if (device.hasOwnProperty('properties')) {
         // update properties
@@ -573,6 +578,10 @@ Data.execDevice = function(uid, device) {
                 Data[uid][device.id].states[key] = device.states[key];
             }
         });
+    }
+    if (device.hasOwnProperty('executionStates')) {
+        // update array of states
+        Data[uid][device.id].executionStates = device.executionStates;
     }
     // console.log('execDevice after', Data[uid][device.id]);
     Data.version++;

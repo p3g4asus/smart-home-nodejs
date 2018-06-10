@@ -14,7 +14,7 @@ limitations under the License.
 
 <link rel="import" href="../bower_components/polymer/polymer.html">
 <link rel="import" href="../bower_components/iron-flex-layout/iron-flex-layout-classes.html">
-<link rel="import" href="../bower_components/iron-icons/image-icons.html">
+<link rel="import" href="../bower_components/iron-icons/notification-icons.html">
 <link rel="import" href="../bower_components/paper-button/paper-button.html">
 <link rel="import" href="../bower_components/paper-dropdown-menu/paper-dropdown-menu.html">
 <link rel="import" href="../bower_components/paper-input/paper-input.html">
@@ -26,23 +26,23 @@ limitations under the License.
 <link rel="import" href="smart-device.html">
 <link rel="import" href="shared-styles.html">
 
-<dom-module id="smart-camera">
+<dom-module id="smart-outlet">
     <template>
-        <smart-device id='smart-device' device="{{device}}" type="cameras">
-            <iron-icon id="camera" icon="image:camera-alt" on-tap="_handleOnOff" slot="device-icon"></iron-icon>
+        <smart-device id='smart-device' device="{{device}}" type="outlets">
+            <iron-icon id="outlet" icon="notification:power" on-tap="_handleOnOff" slot="device-icon"></iron-icon>
         </smart-device>
     </template>
 
     <script>
       /**
-       * Class for smart cameras.
+       * Class for smart outlets.
        */
-      class SmartCamera extends SmartDevice {
+      class SmartOutlet extends SmartDevice {
         /**
          * @return {string} HTML tag.
          */
         static get is() {
-          return 'smart-camera';
+          return 'smart-outlet';
         }
 
         /**
@@ -66,36 +66,33 @@ limitations under the License.
         _deviceChanged() {
           super._deviceChanged();
           if (this.device.states.on) {
-            this.$.camera.style.color = '#9bea00';
+            this.$.outlet.style.color = '#9bea00';
           } else {
-            this.$.camera.style.color = '#eee';
+            this.$.outlet.style.color = '#eee';
           }
         }
 
         /**
-         * Generates a new smart camera
+         * Generates a new smart outlet
          * @param {number} id The device id
          * @param {number} count How many devices of this type already exist
          * @return {object} Object containing SYNC properties and default state
          */
         static generate(id, count) {
-          const nicknames = ['backyard camera', 'security camera'];
+          const nicknames = ['smart plug', 'wall outlet'];
           return {
             id: String(id),
             properties: {
-              type: 'action.devices.types.CAMERA',
+              type: 'action.devices.types.OUTLET',
               traits: [
-                'action.devices.traits.CameraStream',
+                'action.devices.traits.OnOff',
               ],
               name: {
-                defaultNames: [`Smart Camera ${id}`],
-                name: `Smart Camera ${id}`,
-                nicknames: [this.getNickname(nicknames, id, count)]
+                defaultNames: [`Smart Outlet ${id}`],
+                name: `Smart Outlet ${id}`,
+                nicknames: [this.getNickname(nicknames, id, count)],
               },
               willReportState: false,
-              attributes: {
-                'cameraStreamSupportedProtocols': ['mp4', 'hls'],
-              },
               deviceInfo: {
                 manufacturer: 'Smart Home Provider',
                 model: 'g1340',
@@ -108,11 +105,11 @@ limitations under the License.
             },
             states: {
               online: true,
-              on: false
+              on: false,
             },
           };
         }
       }
-      customElements.define(SmartCamera.is, SmartCamera);
+      customElements.define(SmartOutlet.is, SmartOutlet);
     </script>
 </dom-module>

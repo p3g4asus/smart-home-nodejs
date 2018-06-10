@@ -34,14 +34,24 @@ See the developer guide and release notes at [https://developers.google.com/acti
 
 ### Steps for testing with Google Assistant
 
-#### Create and setup project
+#### Create and setup project in Actions Console
 
-1. Navigate to the [Actions Console](https://console.actions.google.com) and
-click Add/Import Project.
-1. Create a new project or import an existing Google Cloud project.
+1. Use the [Actions on Google Console](https://console.actions.google.com) to add a new project with a name of your choosing and click *Create Project*.
+1. Click *Home Control*, then click *Smart Home*.
+1. On the left navigation menu under *SETUP*, click on *Invocation*.
+1. Add your App's name. Click *Save*.
+1. On the left navigation menu under *DEPLOY*, click on *Directory Information*.
+1. Add your App info, including images, a contact email and privacy policy. This information can all be edited before submitting for review.
+1. Click *Save*.
+
+
+#### Add Request Sync
+The Request Sync feature allows a cloud integration to send a request to the Home Graph
+to send a new SYNC request.
+
 1. Navigate to the
 [Google Cloud Console API Manager](https://console.developers.google.com/apis)
-for your project.
+for your project id.
 1. Enable the [HomeGraph API](https://console.cloud.google.com/apis/api/homegraph.googleapis.com/overview). This will be used to request a new sync and to report the state back to the HomeGraph.
 1. Click Credentials
 1. Click 'Create credentials'
@@ -50,6 +60,25 @@ for your project.
 `smart-home-provider/cloud/config-provider.js`
    Enable Request-Sync API using [these
    instructions](https://developers.google.com/actions/smarthome/create-app#request-sync).
+
+To use it, add a new device while the sample is active.
+
+#### Add Report State
+The Report State feature allows a cloud integration to proactively provide the
+current state of devices to the Home Graph without a `QUERY` request. This is
+done securely through [JWT (JSON web tokens)](https://jwt.io/).
+
+1. Navigate to the [Google Cloud Console API & Services page](https://console.cloud.google.com/apis/credentials)
+1. Select **Create Credentials** and create a **Service account key**
+1. Create the account and download a JSON file.
+   Save this as `smart-home-provider/cloud/jwt-key.json`.
+
+The sample already includes support for report state. To use it, create a device
+in the web frontend. Then click on the arrow icon in the top-right corner. It will
+start reporting state when the state changes locally.
+
+#### Setup sample service
+
 1. Set up the web portal
 
         cd smart-home-provider/frontend
@@ -78,26 +107,25 @@ for your project.
 shown as you please. Click the cloud icon shown above at least one of them to
 enable it for cloud control.
 
-#### Use Actions on Google console
+#### Start testing
 
-1. Return to the Actions Console project. Click 'Smart home actions'.
-1. Click Okay.
-1. Click ADD under App information.
-1. Give your App some information like an invocation name, some description, and
- some policy and contact info.
-1. Click Save.
-1. Click Add under Account Linking.
-1. Select 'Authorization Code' for Grant Type.
+1. Navigate back to the [Actions on Google Console](https://console.actions.google.com).
+1. On the left navigation menu under *BUILD*, click on *Actions*. Click on *Add Your First Action* and choose your app's language(s).
+1. Enter the URL for fulfillment, e.g. https://xyz123.ngrok.io/smarthome, click *Done*.
+1. On the left navigation menu under *ADVANCED OPTIONS*, click on *Account Linking*. 
+1. Select *No, I only want to allow account creation on my website*. Click *Next*.
+1. For Linking Type, select *OAuth*.
+1. For Grant Type, select 'Authorization Code' for Grant Type.
 1. Under Client Information, enter the client ID and secret from earlier.
 1. The Authorization URL is the hosted URL of your app with '/oauth' as the
 path, e.g. https://xyz123.ngrok.io/oauth
 1. The Token URL is the hosted URL of your app with '/token' as the path,
 e.g. https://xyz123.ngrok.io/token
 1. Enter any remaining necessary information you might need for
-authentication your app. Then Save.
-1. Press the **TEST DRAFT** button to begin testing this app.
+authentication your app. Click *Save*.
+1. On the left navigation menu under *Test*, click on *Simulator*, to begin testing this app.
 
-#### Start testing on device
+#### Setup Account linking
 
 1. On a device with the Google Assistant logged into the same account used
 to create the project in the Actions Console, enter your Assistant settings.

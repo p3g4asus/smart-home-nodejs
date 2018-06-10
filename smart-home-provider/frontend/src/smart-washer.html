@@ -15,6 +15,7 @@ limitations under the License.
 <link rel="import" href="../bower_components/polymer/polymer.html">
 <link rel="import" href="../bower_components/iron-flex-layout/iron-flex-layout-classes.html">
 <link rel="import" href="../bower_components/iron-icons/iron-icons.html">
+<link rel="import" href="../bower_components/iron-icons/maps-icons.html">
 <link rel="import" href="../bower_components/paper-button/paper-button.html">
 <link rel="import" href="../bower_components/paper-dropdown-menu/paper-dropdown-menu.html">
 <link rel="import" href="../bower_components/paper-input/paper-input.html">
@@ -29,7 +30,7 @@ limitations under the License.
     <template>
         <style include="shared-styles"></style>
         <smart-device id="smart-device" device="{{device}}" type="washers">
-            <iron-icon id="washer" icon="icons:save" on-tap="_handleOnOff" slot="device-icon"></iron-icon>
+            <iron-icon id="washer" icon="maps:local-laundry-service" on-tap="_handleOnOff" slot="device-icon"></iron-icon>
             <div slot="device-states">
                 <div id='toggle-extra-rinse' class='toggle-off'>Extra Rinse</div>
                 <div id='toggle-permanent-press' class='toggle-off'>Permanent Press</div>
@@ -39,83 +40,206 @@ limitations under the License.
     </template>
 
     <script>
-        class SmartWasher extends SmartDevice {
-            static get is() { return 'smart-washer' }
-
-            constructor() {
-                super();
-            }
-
-            _handleOnOff() {
-                this.device.states.on = !this.device.states.on;
-                this._notifyStateChange();
-            }
-
-            _changeState(changes) {
-                if (!this.device.states.online) {
-                    console.log("device offline, nothing changed");
-                } else {
-                    for (var name in changes) {
-                        if (name == "start") {
-                            this.device.states.isRunning = changes[name];
-                            // starting off device -> turn it on and start it
-                            if (this.device.states.isRunning) {
-                                this.device.states.on = true;
-                            }
-                            // if a device has been started/stopped, it can't be paused
-                            this.device.states.isPaused = false;
-                        } else if (name == "pause") {
-                            // else if still running and pausable, set isPaused to whatever is in changes
-                            if (this.device.properties.attributes.pausable) {
-                                if (this.device.states.isRunning || this.device.states.isPaused) {
-                                    this.device.states.isPaused = changes[name];
-                                    this.device.states.isRunning = !changes[name];
-                                }
-                            } else this.device.states.isRunning = false;
-                        } else {
-                            const value = changes[name];
-                            this.set('device.states.' + name, value);
-                        }
-                    }
-                }
-                if (!this.device.states.on) {
-                    // device off, stop everything
-                    this.device.states.isRunning = false;
-                    this.device.states.isPaused = false;
-                }
-                this._notifyStateChange();
-            }
-
-            _deviceChanged() {
-                super._deviceChanged();
-                console.log("Washer changed!", this.device);
-                if (this.device.states.updateToggleSettings) {
-                    this.device.states.currentToggleSettings =
-                        this.device.states.updateToggleSettings;
-                    if (this.device.states.currentToggleSettings['extra rinse']) {
-                        this.$['toggle-extra-rinse'].classList.remove('toggle-off');
-                    } else {
-                        this.$['toggle-extra-rinse'].classList.add('toggle-off');
-                    }
-                    if (this.device.states.currentToggleSettings['permanent press']) {
-                        this.$['toggle-permanent-press'].classList.remove('toggle-off');
-                    } else {
-                        this.$['toggle-permanent-press'].classList.add('toggle-off');
-                    }
-                }
-
-                if (this.device.states.isPaused) {
-                    this.$.washer.style.color = '#ff7733';
-                } else if (this.device.states.isRunning) {
-                    this.$.washer.style.color = '#3399ff';
-                } else if (this.device.states.on) {
-                    this.$.washer.style.color = '#9bea00';
-                }
-                if (!this.device.states.on) {
-                    this.$.washer.style.color = '#eee';
-                }
-            }
+      /**
+       * Class for smart washers.
+       */
+      class SmartWasher extends SmartDevice {
+        /**
+         * @return {string} HTML tag.
+         */
+        static get is() {
+          return 'smart-washer';
         }
-        customElements.define(SmartWasher.is, SmartWasher);
+
+        /**
+         * Default constructor.
+         */
+        constructor() {
+          super();
+        }
+
+        /**
+         * Handles a change in the on/off state.
+         */
+        _handleOnOff() {
+          this.device.states.on = !this.device.states.on;
+          this._notifyStateChange();
+        }
+
+        /**
+         * Handles one or many change in the state.
+         * @param {array} changes An array of changed states
+         */
+        _changeState(changes) {
+          if (!this.device.states.online) {
+            console.log('device offline, nothing changed');
+          } else {
+            for (let name in changes) {
+              if (name == 'start') {
+                this.device.states.isRunning = changes[name];
+                // starting off device -> turn it on and start it
+                if (this.device.states.isRunning) {
+                  this.device.states.on = true;
+                }
+                // if a device has been started/stopped, it can't be paused
+                this.device.states.isPaused = false;
+              } else if (name == 'pause') {
+                // else if still running and pausable,
+                // set isPaused to whatever is in changes
+                if (this.device.properties.attributes.pausable) {
+                  if (this.device.states.isRunning || this.device.states.isPaused) {
+                    this.device.states.isPaused = changes[name];
+                    this.device.states.isRunning = !changes[name];
+                  }
+                } else {
+                  this.device.states.isRunning = false;
+                }
+              } else {
+                const value = changes[name];
+                this.set('device.states.' + name, value);
+              }
+            }
+          }
+          if (!this.device.states.on) {
+            // device off, stop everything
+            this.device.states.isRunning = false;
+            this.device.states.isPaused = false;
+          }
+          this._notifyStateChange();
+        }
+
+        /**
+         * Callback that runs when the device state changes.
+         */
+        _deviceChanged() {
+          super._deviceChanged();
+          if (!this.device.states) {
+            return;
+          }
+          
+          if (this.device.states.updateToggleSettings) {
+            this.device.states.currentToggleSettings =
+              this.device.states.updateToggleSettings;
+            if (this.device.states.currentToggleSettings['extra rinse']) {
+              this.$['toggle-extra-rinse'].classList.remove('toggle-off');
+            } else {
+              this.$['toggle-extra-rinse'].classList.add('toggle-off');
+            }
+            if (this.device.states.currentToggleSettings['permanent press']) {
+              this.$['toggle-permanent-press'].classList.remove('toggle-off');
+            } else {
+              this.$['toggle-permanent-press'].classList.add('toggle-off');
+            }
+          }
+
+          if (this.device.states.isPaused) {
+            this.$.washer.style.color = '#ff7733';
+          } else if (this.device.states.isRunning) {
+            this.$.washer.style.color = '#3399ff';
+          } else if (this.device.states.on) {
+            this.$.washer.style.color = '#9bea00';
+          }
+          if (!this.device.states.on) {
+            this.$.washer.style.color = '#eee';
+          }
+        }
+
+        /**
+         * Generates a new smart washer
+         * @param {number} id The device id
+         * @param {number} count How many devices of this type already exist
+         * @return {object} Object containing SYNC properties and default state
+         */
+         static generate(id, count) {
+          const nicknames = ['washing machine', 'acme washer'];
+          return {
+            id: String(id),
+            properties: {
+              type: 'action.devices.types.WASHER',
+              traits: [
+                'action.devices.traits.OnOff',
+                'action.devices.traits.StartStop',
+                'action.devices.traits.Modes',
+                'action.devices.traits.Toggles',
+                'action.devices.traits.RunCycle',
+              ],
+              name: {
+                defaultNames: ['Smart Washer'],
+                name: `Smart Washer ${id}`,
+                nicknames: [this.getNickname(nicknames, id, count)],
+              },
+              willReportState: false,
+              attributes: {
+                availableModes: [{
+                  name: 'load',
+                  name_values: [{
+                    name_synonym: ['load', 'size', 'load size'],
+                    lang: 'ENGLISH',
+                  }],
+                  settings: [{
+                    setting_name: 'small',
+                    setting_values: [{
+                      setting_synonym: ['small', 'half'],
+                        lang: 'ENGLISH',
+                      }],
+                    }, {
+                      setting_name: 'large',
+                      setting_values: [{
+                        setting_synonym: ['large', 'full'],
+                        lang: 'ENGLISH',
+                      }],
+                    }],
+                    ordered: true,
+                }],
+                availableToggles: [{
+                  name: 'extra rinse',
+                  name_values: [{
+                    name_synonym: ['extra', 'rinse'],
+                    lang: 'ENGLISH',
+                  }],
+                }, {
+                  name: 'permanent press',
+                  name_values: [{
+                    name_synonym: ['permanent', 'press'],
+                    lang: 'ENGLISH',
+                  }],
+                }],
+                pausable: true,
+              },
+              roomHint: '',
+              deviceInfo: {
+                manufacturer: 'Smart Home Provider',
+                model: 'g1401',
+                swVersion: '1.0.11',
+                hwVersion: '1.0',
+              },
+              customData: {
+                smartHomeProviderId: 'FkldJVJCmDNSaoLkoq0txiz8Byf2Hr',
+              },
+            },
+            states: {
+              on: false,
+              online: true,
+              isRunning: false,
+              isPaused: false,
+              currentRunCycle: [{
+                currentCycle: "rinse",
+                nextCycle: "spin",
+                lang: "en"
+              }],
+              currentTotalRemainingTime: 3600,
+              currentCycleRemainingTime: 1800,
+              currentModeSettings: {
+                load: "large"
+              },
+              currentToggleSettings: {
+                extraRinse: false,
+                permanentPress: false
+              }
+            }
+          };
+         }
+      }
+      customElements.define(SmartWasher.is, SmartWasher);
     </script>
 </dom-module>

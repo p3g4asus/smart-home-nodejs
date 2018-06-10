@@ -72,39 +72,107 @@ limitations under the License.
     </template>
 
     <script>
-        class SmartThermostat extends SmartDevice {
-            static get is() { return 'smart-thermostat' }
-
-            constructor() {
-                super();
-            }
-
-            _handleSetpoint() {
-                if (this.device) {
-                    this.device.states.thermostatTemperatureSetpoint = this.$.setpoint.value;
-                    this._notifyStateChange();
-                }
-            }
-
-            _handleAmbient() {
-                if (this.device) {
-                    this.device.states.thermostatTemperatureAmbient = parseFloat(this.$.ambient.value);
-                    this._notifyStateChange();
-                }
-            }
-
-            _deviceChanged() {
-                super._deviceChanged();
-                if (this.device.states.thermostatMode
-                    && this.device.states.thermostatTemperatureSetpoint
-                    && this.device.states.thermostatTemperatureAmbient
-                    && this.device.states.thermostatHumidityAmbient) {
-                    console.log('updated thermostat');
-                } else {
-                    console.log('failed to update thermostat');
-                }
-            }
+      /**
+       * Class for smart thermostats.
+       */
+      class SmartThermostat extends SmartDevice {
+        /**
+         * @return {string} HTML tag.
+         */
+        static get is() {
+          return 'smart-thermostat';
         }
-        customElements.define(SmartThermostat.is, SmartThermostat);
+
+        /**
+         * Default constructor.
+         */
+        constructor() {
+          super();
+        }
+
+        /**
+         * Handles a change in the setpoint.
+         */
+        _handleSetpoint() {
+          if (this.device) {
+            this.device.states.thermostatTemperatureSetpoint =
+              this.$.setpoint.value;
+            this._notifyStateChange();
+          }
+        }
+
+        /**
+         * Handles a change in the ambient temperature.
+         */
+        _handleAmbient() {
+          if (this.device) {
+            this.device.states.thermostatTemperatureAmbient =
+              parseFloat(this.$.ambient.value);
+            this._notifyStateChange();
+          }
+        }
+
+        /**
+         * Callback that runs when the device state changes.
+         */
+        _deviceChanged() {
+          super._deviceChanged();
+          if (this.device.states.thermostatMode
+              && this.device.states.thermostatTemperatureSetpoint
+              && this.device.states.thermostatTemperatureAmbient
+              && this.device.states.thermostatHumidityAmbient) {
+            console.log('updated thermostat');
+          } else {
+            console.log('failed to update thermostat');
+          }
+        }
+
+        /**
+         * Generates a new smart thermostat
+         * @param {number} id The device id
+         * @param {number} count How many devices of this type already exist
+         * @return {object} Object containing SYNC properties and default state
+         */
+         static generate(id, count) {
+            const nicknames = ['wall thermostat', 'upstairs thermostat'];
+            return {
+              id: String(id),
+              properties: {
+                type: 'action.devices.types.THERMOSTAT',
+                traits: [
+                  'action.devices.traits.TemperatureSetting',
+                ],
+                name: {
+                  defaultNames: ['Smart Thermostat'],
+                  name: `Smart Thermostat ${id}`,
+                  nicknames: [this.getNickname(nicknames, id, count)],
+                },
+                willReportState: false,
+                roomHint: '',
+                deviceInfo: {
+                  manufacturer: 'Smart Home Provider',
+                  model: 'g1338',
+                  swVersion: '1.0.31',
+                  hwVersion: '1.1',
+                },
+                attributes: {
+                  availableThermostatModes: 'off,heat,cool,on',
+                  thermostatTemperatureUnit: 'C',
+                },
+                customData: {
+                  smartHomeProviderId: 'SGs84HiURHSb6ggrGjiv9jJ3t7U4ze',
+                },
+              },
+              states: {
+                online: true,
+                thermostatMode: 'cool',
+                thermostatTemperatureSetpoint: 23.0,
+                thermostatTemperatureAmbient: 25.1,
+                thermostatHumidityAmbient: 45.3
+              }
+            };
+         }
+      }
+      customElements.define(SmartThermostat.is, SmartThermostat);
     </script>
 </dom-module>
