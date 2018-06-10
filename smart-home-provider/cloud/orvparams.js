@@ -1339,7 +1339,7 @@ var remoteVolumeTemplate = {
         },
     },
     "states": {
-        "on": false,
+        "on": true,
         "online": true,
         "brightness": 50
     },
