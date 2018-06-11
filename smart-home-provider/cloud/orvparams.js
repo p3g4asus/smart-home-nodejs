@@ -1264,7 +1264,7 @@ function manageRawChanges(uid,newraws) {
                     p1 = rev[2]+':'+rev[3];
                 cli.promise('editraw '+rev[1]+' '+p1+" "+rawv)
                 .then(function(out) {
-                    manageResult(n,rawk,out.retval);
+                    manageResult(n,rawk,out.obj.retval);
                 }).catch(function(out) {
                     manageResult(n,rawk,700);
                 });
