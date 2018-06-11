@@ -653,6 +653,52 @@ function processMessage(uid,msg,res) {
             //mettere a on le key presente di questa device
             //mettere a running il remoteNum relativo al telecomando usato
             else if (msg=="ActionEmitir") {
+                var newkeys = [];
+                var lastNum = "";
+                res["action"]["irname"].forEach(function(k) {
+                    var effectivename = "",idx;
+                    var effectiveremote = "";
+                    var effectivenum = 1;
+                    var remoteObj;
+                    var insert = true;
+                    if (k.charAt(0)=='@') {
+                        effectivename = k;
+                    }
+                    else if (k.charAt(0)!='$' && (idx = k.indexOf(':'))>0 && idx<k.length-1) {
+                        var kks = k.split(':');
+                        effectivename = kks[1]
+                        effectiveremote = kks[0];
+                    }
+                    if ((idx = effectivename.indexOf('#'))>0 && idx<effectivename.length-1)  {
+                        effectivenum = parseInt(effectivename.substring(idx+1));
+                        effectivename = effectivename.substring(0,idx);
+                    }
+                    //console.log("[ProcessMessage] foundNK "+k+" "+effectiveremote+'/'+effectivename+'/'+effectivenum);
+                    if ((remoteObj = ud["devicetable"].remote[devname+':'+effectiveremote]) &&
+                        remoteObj.numData && remoteObj.numData.pre.length==0 &&
+                        remoteObj.numData.post.length==0) {
+                        if (/^[0-9]+$/.exec(effectivename)) {
+                            if (lastNum.length) {
+                                newkeys[newkeys.length-1].name+=effectivename;
+                                lastNum = newkeys[newkeys.length-1].name;
+                                insert = false;
+                            }
+                            else
+                                lastNum = effectivename;
+                        }
+                        else {
+                            lastNum = "";
+                        }
+                    }
+                    if (insert && effectivename.length)
+                        newkeys.push({
+                            "name":effectivename,
+                            "num":effectivenum,
+                            "remote":effectiveremote
+                        });
+                });
+                console.log("[ProcessMessage] nk "+JSON.stringify(newkeys));
+                let devicesModded = [];
                 devices.forEach(function(d) {
                     var modd = false;
                     if (d.properties.deviceInfo.model=="remotenum" && d.properties.customData["offset"]==0) {
@@ -670,57 +716,17 @@ function processMessage(uid,msg,res) {
                             modd = true;
                         d.states.on = true;
                     }
-                    var newkeys = [];
-                    var lastNum = "";
-                    res["action"]["irname"].forEach(function(k) {
-                        var effectivename = "",idx;
-                        var effectiveremote = "";
-                        var effectivenum = 1;
-                        var remoteObj;
-                        var insert = true;
-                        if (k.charAt(0)=='@') {
-                            effectivename = k;
-                        }
-                        else if (k.charAt(0)!='$' && (idx = k.indexOf(':'))>0 && idx<k.length-1) {
-                            var kks = k.split(':');
-                            evvectivename = kks[1]
-                            effectiveremote = kks[0];
-                        }
-                        if ((idx = effectivename.indexOf('#'))>0 && idx<effectivename.length-1)  {
-                            effectivenum = parseInt(effectivename.substring(idx+1));
-                            effectivename = effectivename.substring(0,idx);
-                        }
-                        if ((remoteObj = ud["devicetable"].remote[devname+':'+effectiveremote]) &&
-                            remoteObj.numData && remoteObj.numData.pre.length==0 &&
-                            remoteObj.numData.post.length==0) {
-                            if (/^[0-9]+$/.exec(effectivename)) {
-                                if (lastNum.length) {
-                                    newkeys[nnewkeys.length-1].name+=effectivename;
-                                    lastNum = newkeys[nnewkeys.length-1];
-                                    insert = false;
-                                }
-                            }
-                            else {
-                                lastNum = "";
-                            }
-                        }
-                        if (insert && effectivename.length)
-                            newkeys.push({
-                                "name":effectivename,
-                                "num":effectivenum,
-                                "remote":effectiveremote
-                            });
-                    });
                     newkeys.forEach(function(k) {
-                        if (d.properties.deviceInfo.model=="remotenum" && d.properties.customData["device"]==devname &&
-                            d.properties.customData["remote"]==k.remote) {
-                            var offset;
-                            if ((offset = d.properties.customData["offset"])==0)
+                        let offset = d.properties.customData["offset"];
+                        if (d.properties.deviceInfo.model=="remotenum" &&
+                            ((d.properties.customData["device"]==devname &&
+                            d.properties.customData["remote"]==k.remote) || offset)) {
+                            if (offset==0)
                                 d.states.on = true;
                             modd = true;
                             var remoteObj;
                             if ((remoteObj = ud["devicetable"].remote[devname+':'+k.remote]) &&
-                                remoteObj.numData) {
+                                (remoteObj = remoteObj.numData)) {
                                 var reg = new RegExp(remoteObj.pre+"([0-9]+)"+remoteObj.post);
                                 var m = reg.exec(k.name);
                                 if (m) {
@@ -728,6 +734,7 @@ function processMessage(uid,msg,res) {
                                     if (num>offset && num<offset+100) {
                                         d.states.brightness = num-offset;
                                         d.states.on = true;
+                                        console.log("[ProcessMessage] "+d.properties.name.nicknames[0]+" "+JSON.stringify(d.states));
                                     }
                                 }
                             }
@@ -754,8 +761,9 @@ function processMessage(uid,msg,res) {
                         }
                     });
                     if (modd)
-                        devMod(uid,[d]);
+                        devicesModded.push(d);
                 });
+                devMod(uid,devicesModded);
             }
         }
         let conn;
