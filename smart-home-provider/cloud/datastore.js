@@ -317,7 +317,7 @@ const Auth = {
     isUserRegistered: function(uid) {
         try {
             let val = (Data.getUid(uid)) && Auth[uid]!=null && Auth[uid]==Auth.userobj[uid].tokens['refresh'].s;
-            console.log("[isUserRegistered out] "+val);
+            //console.log("[isUserRegistered out] "+val);
             return val;
         }
         catch(e) {

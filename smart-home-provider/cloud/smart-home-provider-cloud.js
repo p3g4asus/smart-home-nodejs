@@ -886,7 +886,7 @@ function cloudInit() {
                         fetch(urltoFetch, options)
                         .then(res => res.json())
                         .then(json => {
-                            console.log("[ModDevice json] "+JSON.stringify(json));
+                            //console.log("[ModDevice json] "+JSON.stringify(json));
                             outPromise.push({
                                 "dev":device,
                                 "stat":JSON.stringify(json),

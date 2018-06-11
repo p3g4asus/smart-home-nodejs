@@ -407,9 +407,8 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
 function devMod(uid,devicesModded) {
     if (exports.onMod)
         exports.onMod(uid,devicesModded).then(function(outt) {
-            console.log("[devMod] OK "+JSON.stringify(outt));
+            //console.log("[devMod] OK "+JSON.stringify(outt));
         }).catch(function(err) {
-
             console.log("[devMod] err "+(err.stack?err.stack:""));
         });
 }
@@ -641,7 +640,7 @@ function processMessage(uid,msg,res) {
                             if (st!=d.states.on) {
                                 d.states.on = st;
                                 devMod(uid,[d]);
-                                console.log("Change on device "+JSON.stringify(d));
+                                console.log("[ProcessMessage] 4) Change on device "+getDeviceDbgName(d)+': '+JSON.stringify(d.states));
                             }
                             return true;
                         }
@@ -734,17 +733,16 @@ function processMessage(uid,msg,res) {
                                     if (num>offset && num<offset+100) {
                                         d.states.brightness = num-offset;
                                         d.states.on = true;
-                                        console.log("[ProcessMessage] "+d.properties.name.nicknames[0]+" "+JSON.stringify(d.states));
                                     }
                                 }
                             }
-                            console.log("Change on device "+JSON.stringify(d));
+                            console.log("[ProcessMessage] 1) Change on device "+getDeviceDbgName(d)+': '+JSON.stringify(d.states));
                         }
                         else if (d.properties.deviceInfo.model=="remotekey" &&
                             d.properties.customData["key"]==k.name) {
                             d.states.on = true;
                             modd = true;
-                            console.log("Change on device "+JSON.stringify(d));
+                            console.log("[ProcessMessage] 2) Change on device "+getDeviceDbgName(d)+': '+JSON.stringify(d.states));
                         }
                         else if (d.properties.deviceInfo.model=="remotevol") {
                             /*var m = remoteVolumeRegexp.exec(k.name);
@@ -757,7 +755,7 @@ function processMessage(uid,msg,res) {
                             d.states.on = true;
                             d.states.brightness = 50;
                             modd = true;
-                            console.log("Change on device "+JSON.stringify(d));
+                            console.log("[ProcessMessage] 3) Change on device "+getDeviceDbgName(d)+': '+JSON.stringify(d.states));
                         }
                     });
                     if (modd)

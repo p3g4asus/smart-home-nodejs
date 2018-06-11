@@ -120,15 +120,15 @@ var Token = (function(){
             else {
                 let t = new Token(res1);
                 if (!t.isExpired()) {
-                    console.log("[Token] Token was loaded successfully: "+t);
+                    console.log("[Token] OK: "+t);
                     resolve(t);
                 }
                 else {
                     t.remove().then(function(us) {
-                        console.log("[Token] Token was expired and was removed successfully: "+t);
+                        console.log("[Token] Expired, removed OK: "+t);
                         reject(1400);
                     }).catch(function(err) {
-                        console.log("[Token] Token was expired but there was error removing: "+t+"; "+err);
+                        console.log("[Token] Expired, removed Error: "+t+"; "+err);
                         reject(1450);
                     });
                 }
