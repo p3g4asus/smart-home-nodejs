@@ -1255,13 +1255,13 @@ function manageRawChanges(uid,newraws) {
         let processRaw = function(n) {
             let rawk = arrprocess[n];
             let rawv = newraws[rawk];
-            let rev = /([^:]+):([^:]+):([^:]+)/.exec(rawk);
+            let rev = /([^:]+):([^:]+):([^:]+):([^:]+):([^:]+)/.exec(rawk);
             if (rev) {
                 let p1;
                 if (rev[3].charAt(0)=='@')
                     p1 = rev[3];
                 else
-                    p1 = rev[2]+':'+rev[3];
+                    p1 = rev[2]+':'+rev[3]+':'+rev[4]+':'+rev[5];
                 cli.promise('editraw '+rev[1]+' '+p1+" "+rawv)
                 .then(function(out) {
                     manageResult(n,rawk,out.obj.retval);

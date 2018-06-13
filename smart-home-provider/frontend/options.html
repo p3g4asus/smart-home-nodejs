@@ -118,6 +118,7 @@ limitations under the License.
     <link rel="import" href="bower_components/iron-icons/device-icons.html">
     <link rel="import" href="bower_components/iron-icons/editor-icons.html">
     <link rel="import" href="bower_components/iron-icons/social-icons.html">
+    <link rel="import" href="bower_components/iron-icons/image-icons.html">
     <link rel="import" href="bower_components/iron-list/iron-list.html">
     <link rel="import" href="bower_components/paper-dialog/paper-dialog.html">
 	<link rel="import" href="bower_components/neon-animation/web-animations.html">
@@ -237,6 +238,11 @@ limitations under the License.
 					height:15em;
 					overflow-y: auto;
 				}
+				
+				.divider{
+					padding-left: 10px;
+					padding-right: 10px;
+				}
 
 				paper-textarea {
 				  display: block;
@@ -248,6 +254,14 @@ limitations under the License.
 				}
 				paper-icon-button[hidden] {
 					display: none;
+				}
+				
+				paper-icon-button.blue {
+					--paper-icon-button-ink-color: var(--paper-orange-500);
+					background-color: var(--paper-light-blue-500);
+					color: white;
+					border-radius: 3px;
+					padding: 2px;
 				}
 
 				paper-listbox[hidden] {
@@ -467,10 +481,14 @@ limitations under the License.
 			<p class>Rename {{itemRename.device}}/{{itemRename.remote}}</p>
 			<paper-dialog-scrollable class>
 				<div class="layout vertical end">
-					<paper-input class="padded-both" label=[[getRenameF1Label(itemRename.type)]] value={{itemRename.devicenick}} disabled$=[[getRenameDeviceInputDisabled(itemRename.idx,itemRename.type)]] id="devicename" placeholder=[[getRenameF1Label(itemRename.type)]] invalid=[[getDeviceNameInvalid(itemRename.devicenick,itemRename.type)]]></paper-input>
-					<paper-input class="padded-both" label=[[getRenameF2Label(itemRename.type)]] value={{itemRename.remotenick}} disabled$=[[getRenameRemoteInputDisabled(itemRename.idx,itemRename.type)]] id="remotename" placeholder=[[getRenameF2Label(itemRename.type)]] invalid=[[getRemoteNameInvalid(itemRename.remotenick,itemRename.type)]]></paper-input>
-					<paper-button class="custom indigo" id="applyrename" on-click="renameAll" disabled$=[[getRenameButtonDisabled(itemRename.idx,itemRename.devicenick,itemRename.remotenick,itemRename.type)]]>Rename</paper-button>
-					<div class="layout horizontal end padded-both [[getRawDevClass(itemRename.type)]]">
+					<paper-input class="padded-both" label=[[getRenameF1Label(itemRename.type)]] value={{itemRename.devicenick}} disabled$=[[getRenameDeviceInputDisabled(itemRename.idx,itemRename.type)]] id="devicename" placeholder=[[getRenameF1Label(itemRename.type)]] invalid=[[getDeviceNickInvalid(itemRename.devicenick,itemRename.type)]]></paper-input>
+					<paper-input class="padded-both" label=[[getRenameF2Label(itemRename.type)]] value={{itemRename.remotenick}} disabled$=[[getRenameRemoteInputDisabled(itemRename.idx,itemRename.type)]] id="remotename" placeholder=[[getRenameF2Label(itemRename.type)]] invalid=[[getRemoteNickInvalid(itemRename.remotenick,itemRename.type)]]></paper-input>
+					<div class="layout horizontal end padded-both">
+						<paper-icon-button icon="image:edit" class="blue" id="applyrename" on-click="renameAll" disabled$=[[getRenameButtonDisabled(itemRename.idx,itemRename.devicenick,itemRename.remotenick,itemRename.type)]]></paper-icon-button>
+						<div class="divider"></div>
+						<paper-icon-button icon="image:control-point" class$="blue [[getRawDevClass(itemRename.type)]]" id="applyduplicate" on-click="duplicateKey" disabled$=[[getDuplicateButtonDisabled(itemRename.idx,itemRename.devicenick,itemRename.remotenick,itemRename.type)]]></paper-icon-button>
+					</div>
+					<div class$="layout horizontal end padded-both [[getRawDevClass(itemRename.type)]]">
 						<paper-textarea
 							class$="padded-both [[getRawDevClass(itemRename.type)]]"
 							rows="4"
@@ -1529,12 +1547,20 @@ HTMLImports.whenReady(() => {
 			return type.length==0 || type.charAt(0)=="d" || type=="r2" || type=="r3" || this.disabled;
 		}
 
-		getDeviceNameInvalid(v,type) {
+		getDeviceNickInvalid(v,type) {
 			return !/^[0-9a-zA-Z \-\+&]+$/.exec(v);
 		}
 
-		getRemoteNameInvalid(v,type) {
+		getRemoteNickInvalid(v,type) {
 			return !/^[0-9a-zA-Z \-\+&]+$/.exec(v) && !this.getRenameRemoteInputDisabled(0,type);
+		}
+		
+		getDeviceNameInvalid(v,type) {
+			return !/^[0-9a-zA-Z_\-\+]+$/.exec(v);
+		}
+
+		getRemoteNameInvalid(v,type) {
+			return !/^[0-9a-zA-Z_\-\+]+$/.exec(v);
 		}
 
 		getRenameF1Label(tp) {
@@ -1554,6 +1580,10 @@ HTMLImports.whenReady(() => {
 		}
 
 		getRenameButtonDisabled(idx,device,remote,type) {
+			return this.getRemoteNickInvalid(remote,type) || this.getDeviceNickInvalid(device,type);
+		}
+		
+		getDuplicateButtonDisabled(idx,device,remote,type) {
 			return this.getRemoteNameInvalid(remote,type) || this.getDeviceNameInvalid(device,type);
 		}
 
@@ -1652,6 +1682,7 @@ HTMLImports.whenReady(() => {
 				let key = this.remotesList[this.$.remoteslb.selected].device+':'+
 					this.itemRename.device+':'+
 					this.itemRename.remote;
+				key+=':'+':'+this.itemRename.device+':'+this.itemRename.remote;
 				this.actions.raw[key] = this.itemRename.raw;
 				console.log("Action inserted: "+key);
 				this.createToast('plain','Edit action will be executed on submit',5);
@@ -1858,6 +1889,19 @@ HTMLImports.whenReady(() => {
 
 		getSelectedKeyIcon(item,filtered) {
 			return this.getSelectedRemoteIcon(item,filtered);
+		}
+		
+		duplicateKey() {
+			let idx = this.itemRename.idx;
+			if (idx>=0 && this.itemRename.type.startsWith('k')) {
+				let orig = this.keysList[idx];
+				let key = this.remotesList[this.$.remoteslb.selected].device+':'+
+					this.itemRename.device+':'+this.itemRename.remote+':'+
+					this.itemRename.devicenick+':'+this.itemRename.remotenick;
+				this.actions.raw[key] = this.itemRename.raw;
+				console.log("Action inserted: "+key);
+				this.createToast('plain','Duplicate action will be executed on submit',5);
+			}
 		}
 
 		renameAll() {
