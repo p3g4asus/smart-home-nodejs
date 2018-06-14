@@ -1177,13 +1177,11 @@ HTMLImports.whenReady(() => {
 		}
 
 		manageES(detail) {
-			console.log("Eccomi qua");
 			let d = JSON.parse(detail.data);
 			let msg = d.msg;
 			let data = d.pld;
 			let str = '';
 			let tt = 5;
-			console.log("New ES msg "+msg);
 			if (msg=='conmsg') {
 				str = data.msg;
 			}
