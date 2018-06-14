@@ -478,17 +478,20 @@ limitations under the License.
 			</div>
 		</paper-dialog>
 		<paper-dialog class id="renamedialog" modal>
-			<p class>Rename {{itemRename.device}}/{{itemRename.remote}}</p>
+			<h3>Modify {{itemRename.device}}/{{itemRename.remote}}</h3>
 			<paper-dialog-scrollable class>
-				<div class="layout vertical end">
-					<paper-input class="padded-both" label=[[getRenameF1Label(itemRename.type)]] value={{itemRename.devicenick}} disabled$=[[getRenameDeviceInputDisabled(itemRename.idx,itemRename.type)]] id="devicename" placeholder=[[getRenameF1Label(itemRename.type)]] invalid=[[getDeviceNickInvalid(itemRename.devicenick,itemRename.type)]]></paper-input>
-					<paper-input class="padded-both" label=[[getRenameF2Label(itemRename.type)]] value={{itemRename.remotenick}} disabled$=[[getRenameRemoteInputDisabled(itemRename.idx,itemRename.type)]] id="remotename" placeholder=[[getRenameF2Label(itemRename.type)]] invalid=[[getRemoteNickInvalid(itemRename.remotenick,itemRename.type)]]></paper-input>
-					<div class="layout horizontal end padded-both">
-						<paper-icon-button icon="image:edit" class="blue" id="applyrename" on-click="renameAll" disabled$=[[getRenameButtonDisabled(itemRename.idx,itemRename.devicenick,itemRename.remotenick,itemRename.type)]]></paper-icon-button>
-						<div class="divider"></div>
-						<paper-icon-button icon="image:control-point" class$="blue [[getRawDevClass(itemRename.type)]]" id="applyduplicate" on-click="duplicateKey" disabled$=[[getDuplicateButtonDisabled(itemRename.idx,itemRename.devicenick,itemRename.remotenick,itemRename.type)]]></paper-icon-button>
+				<div class="layout horizontal end">
+					<div class="layout vertical end">
+						<paper-input class="padded-both" label=[[getRenameF1Label(itemRename.type)]] value={{itemRename.devicenick}} disabled$=[[getRenameDeviceInputDisabled(itemRename.idx,itemRename.type)]] id="devicename" placeholder=[[getRenameF1Label(itemRename.type)]] invalid=[[getDeviceNickInvalid(itemRename.devicenick,itemRename.type)]]></paper-input>
+						<paper-input class="padded-both" label=[[getRenameF2Label(itemRename.type)]] value={{itemRename.remotenick}} disabled$=[[getRenameRemoteInputDisabled(itemRename.idx,itemRename.type)]] id="remotename" placeholder=[[getRenameF2Label(itemRename.type)]] invalid=[[getRemoteNickInvalid(itemRename.remotenick,itemRename.type)]]></paper-input>
+						<div class="layout horizontal end padded-both">
+							<paper-icon-button icon="image:edit" class="blue" id="applyrename" on-click="renameAll" disabled$=[[getRenameButtonDisabled(itemRename.idx,itemRename.devicenick,itemRename.remotenick,itemRename.type)]]></paper-icon-button>
+							<div class$="divider [[getRawDevClass(itemRename.type)]]"></div>
+							<paper-icon-button icon="image:control-point" class$="blue [[getRawDevClass(itemRename.type)]]" id="applyduplicate" on-click="duplicateKey" disabled$=[[getDuplicateButtonDisabled(itemRename.idx,itemRename.devicenick,itemRename.remotenick,itemRename.type)]]></paper-icon-button>
+						</div>
 					</div>
-					<div class$="layout horizontal end padded-both [[getRawDevClass(itemRename.type)]]">
+					
+					<div class$="layout vertical end [[getRawDevClass(itemRename.type)]]">
 						<paper-textarea
 							class$="padded-both [[getRawDevClass(itemRename.type)]]"
 							rows="4"
@@ -496,19 +499,20 @@ limitations under the License.
 							placeholder="Raw"
 							readolnly=[[getRawKeyInputDisabled(itemRename.raw,itemRename.type)]]
 							value="{{itemRename.raw}}"></paper-textarea>
-
-						<!--editor:mode-edit icons:check-->
-						<paper-icon-button
-							class$="padded-both [[getRawDevClass(itemRename.type)]]"
-							icon="icons:check"
-							disabled$=[[getRawKeyInputDisabled(itemRename.raw,itemRename.type)]]
-							on-tap="setRawKeyInputOK"></paper-icon-button>
-
-						<paper-icon-button
-							class$="padded-both [[getRawDevClass(itemRename.type)]]"
-							icon="icons:clear"
-							disabled$=[[getRawKeyInputDisabled(itemRename.raw,itemRename.type)]]
-							on-tap="setRawKeyInputCancel"></paper-icon-button>
+						<div class$="layout horizontal end padded-both [[getRawDevClass(itemRename.type)]]">
+							<!--editor:mode-edit icons:check-->
+							<paper-icon-button
+								class$="padded-both blue [[getRawDevClass(itemRename.type)]]"
+								icon="icons:check"
+								disabled$=[[getRawKeyInputDisabled(itemRename.raw,itemRename.type)]]
+								on-tap="setRawKeyInputOK"></paper-icon-button>
+							<div class$="divider [[getRawDevClass(itemRename.type)]]"></div>
+							<paper-icon-button
+								class$="padded-both blue [[getRawDevClass(itemRename.type)]]"
+								icon="icons:clear"
+								disabled$=[[getRawKeyInputDisabled(itemRename.raw,itemRename.type)]]
+								on-tap="setRawKeyInputCancel"></paper-icon-button>
+						</div>
 					</div>
 				</div>
 			</paper-dialog-scrollable>
