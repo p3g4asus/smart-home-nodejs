@@ -797,6 +797,7 @@ function cloudInit() {
         //var lnk = config.smartHomeProviderCloudEndpoint+'/smart-home-api/device-connection/'+device.id;
         //makeReq(lnk);
         return datastore.Auth.loadUserTokens(uid,config.smartHomeProviderGoogleClientId,["access"]).then(function(token) {
+            console.log("[AddDevice"+uid+"] Device: "+device.id);
             if (token['access']) {
                 var EventSource = require('eventsource');
                 var es = new EventSource("http://localhost:"+config.devPortSmartHome + '/smart-home-api/device-connection/' + device.id);
@@ -817,7 +818,7 @@ function cloudInit() {
             if (e.stack)
                 console.log(e.stack);
             else
-                console.log("[addDevice error] Error detected: "+e);
+                console.log("[AddDevice"+uid+" error] Error detected: "+e);
             return null;
         });
     }
