@@ -198,7 +198,7 @@ var MFZClient = (function(){
                     console.log('[TCPC] Connected');
                     fun = typeof fun === "undefined"?"devicedl":fun
                     if (fun.startsWith("devicedl"))
-                        that.onMsgReceived(25);
+                        that.onMsgReceived(75);
                     that.writecmnd(fun);
                 });
             }
