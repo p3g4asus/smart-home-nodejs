@@ -31,6 +31,7 @@ var User = (function(){
                 that.options.autologin = us.options.autologin;
         }
         that.uid = us.hasOwnProperty('uid')?us.uid:null;
+        that.clientname = us.hasOwnProperty('clientname')?us.clientname:null;
         that.username = us.hasOwnProperty('username')?us.username:null;
         that.password = us.hasOwnProperty('password')?us.password:null;
         that.tokens = us.hasOwnProperty('tokens')?us.tokens:{'access':null,'refresh':null};
@@ -176,6 +177,7 @@ var User = (function(){
                     redis_client.hmset("user:"+that.uid,
                         "password", User.hashPassword(that.password),
                         "username", that.username,
+                        "clientname",that.clientname,
                         "uid", that.uid, function (err3,resHMSet3) {
                             if (err3 || resHMSet3.indexOf("OK")<0)
                                 reject1(err3?err3:2000);

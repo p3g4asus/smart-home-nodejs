@@ -127,6 +127,36 @@ var Client = (function(){
 	Client.findById = function(id) {
 		return Client.findOne({"stringid":id});
 	};
+
+    Client.findAll = function() {
+        return new Promise(function(resolve,reject) {
+            redis_client.smembers("client:validclients",function(err3,res3) {
+                if (!err3 && res3) {
+                    out = [];
+                    let findid = function(idx) {
+                        if (idx<res3.length) {
+                            console.log("[ClientFindAll] findbyid "+res3[idx]);
+                            Client.findById(res3[idx]).then(
+                                function(c) {
+                                    out.push(c);
+                                    findid(idx+1);
+                                }
+                            ).catch(function(err4) {
+                                findid(idx+1);
+                            })
+                        }
+                        else if (out.length)
+                            resolve(out);
+                        else
+                            reject(400);
+                    }
+                    findid(0);
+                }
+                else
+                    reject(err3);
+            });
+        });
+    };
     Client.findByUsername = function(id) {
 		return Client.findOne({"username":id});
 	};
@@ -159,9 +189,8 @@ var Client = (function(){
 				funadd(0);
             }
 		};
-		if (obj.hasOwnProperty('stringid') && obj.stringid!==null) {
-			return searchall(null,[obj.stringid]);
-		}
+		if (obj.hasOwnProperty('stringid') && obj.stringid!==null)
+            searchall(null,[obj.stringid]);
 		else {
             let ks = Object.keys(obj);
             let listids = [];
@@ -184,9 +213,9 @@ var Client = (function(){
                 }
             };
             src(0);
-            return prom;
-		}
-	};
+        }
+        return prom;
+    };
     return Client;
 })();
 module.exports = Client;

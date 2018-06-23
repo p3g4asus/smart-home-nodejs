@@ -119,6 +119,10 @@ limitations under the License.
     <link rel="import" href="bower_components/paper-button/paper-button.html">
     <link rel="import" href="bower_components/paper-icon-button/paper-icon-button.html">
     <link rel="import" href="bower_components/paper-toast/paper-toast.html">
+    <link rel="import" href="bower_components/neon-animation/web-animations.html">
+    <link rel="import" href="bower_components/paper-listbox/paper-listbox.html">
+    <link rel="import" href="bower_components/paper-dropdown-menu/paper-dropdown-menu.html">
+    <link rel="import" href="bower_components/paper-item/paper-item.html">
 
     <style>
         body {
@@ -158,11 +162,17 @@ limitations under the License.
                 color: #333;
             }
 
-            paper-input {
+            paper-input{
                 width: calc(100% - 40px);
                 margin-left: 20px;
                 text-align: left;
                 margin-bottom: 20px;
+            }
+            
+            paper-dropdown-menu {
+                width: calc(100% - 40px);
+                padding-left: 80px;
+                padding-bottom: 20px;
             }
 
             paper-input iron-icon {
@@ -215,7 +225,7 @@ limitations under the License.
             id="usernamecheck"
             url="/checkuser"
             handle-as="json"
-			reject-with-request="true"
+            reject-with-request="true"
             debounce-duration="300"></iron-ajax>
         <paper-input
             label="Username"
@@ -257,14 +267,27 @@ limitations under the License.
             validator="equality-validator">
             <iron-icon icon="communication:vpn-key" prefix></iron-icon>
         </paper-input>
+        <iron-ajax
+            id="getclientnames"
+            url="/clientnames"
+            handle-as="json"
+            reject-with-request="true"
+            debounce-duration="300"></iron-ajax>
+        <paper-dropdown-menu label="Client Name" id="clientnames_drop">
+            <paper-listbox on-selected-changed="onClietNameSelected" slot="dropdown-content" attr-for-selected="value" id="clientnames_list">
+                <template is="dom-repeat" items="{{clientNamesList}}" as="item">
+                    <paper-item value="{{item}}">{{item}}</paper-item>
+                </template>
+            </paper-listbox>
+        </paper-dropdown-menu>
         <paper-button raised onclick="_submit(event)" disabled id="signupsubmit">
             <paper-spinner id="spinner" hidden></paper-spinner>
             Submit
         </paper-button>
         <input type="hidden" name="redirect" />
-        <input type="hidden" name="client_id" />
         <input type="hidden" name="redirect_uri" />
         <input type="hidden" name="state" />
+        <input type="hidden" name="clientname" />
         <input type="hidden" name="username" />
         <input type="hidden" name="password" />
         <paper-button raised onclick="_reset(event)">Reset</paper-button>
@@ -319,295 +342,314 @@ limitations under the License.
 
 <script>
 function getUrlParameters() {
-	// Get each parameter
-	let query = window.location.search.substr(1);
-	// Split each parameter into a key-value pair
-	let keyValues = query.split('&');
-	let parameterMap = new Map();
-	for (let i in keyValues) {
-		// Split into <key>=<value>
-		let param = keyValues[i];
-		let splitParam = param.split('=');
-		parameterMap.set(splitParam[0], splitParam[1]);
-	}
-	return parameterMap;
+    // Get each parameter
+    let query = window.location.search.substr(1);
+    // Split each parameter into a key-value pair
+    let keyValues = query.split('&');
+    let parameterMap = new Map();
+    for (let i in keyValues) {
+        // Split into <key>=<value>
+        let param = keyValues[i];
+        let splitParam = param.split('=');
+        parameterMap.set(splitParam[0], splitParam[1]);
+    }
+    return parameterMap;
 }
 
 function _submit(event) {
-	const mainel = document.querySelector('signup-form');
-	const dom = mainel.$;
-	const signupform = dom.signupform;
-	const spinner = dom.spinner;
-	const signupsubmit = dom.signupsubmit;
-	spinner.active = true;
-	spinner.hidden = false;
-	signupsubmit.disabled = true;
-	dom.usernamecheck.set('params', {
-		"us": mainel.data.username
-	});
-	let request = dom.usernamecheck.generateRequest();
-	request.completes.then(function(req) {
-		console.log("[Completes req]");
-		mainel.submit();
-	}, function(rejected) {
-		console.log("[Rejected req]");
-		let req = rejected.request;
-		let error = rejected.error;
-		console.log(JSON.stringify(rejected));
-		if (error == 406)
-			mainel.usernameTaken = "Username is already taken.";
-		else
-			mainel.usernameTaken = "Request failed with code " + req.xhr.status;
-		signupform.fire('change');
-		//signupform.querySelector('.output').innerHTML = errorMessage;
-	});
+    const mainel = document.querySelector('signup-form');
+    const dom = mainel.$;
+    const signupform = dom.signupform;
+    const spinner = dom.spinner;
+    const signupsubmit = dom.signupsubmit;
+    spinner.active = true;
+    spinner.hidden = false;
+    signupsubmit.disabled = true;
+    dom.usernamecheck.set('params', {
+        "us": mainel.data.username
+    });
+    let request = dom.usernamecheck.generateRequest();
+    request.completes.then(function(req) {
+        console.log("[Completes req]");
+        mainel.submit();
+    }, function(rejected) {
+        console.log("[Rejected req]");
+        let req = rejected.request;
+        let error = rejected.error;
+        console.log(JSON.stringify(rejected));
+        if (error == 406)
+            mainel.usernameTaken = "Username is already taken.";
+        else
+            mainel.usernameTaken = "Request failed with code " + req.xhr.status;
+        signupform.fire('change');
+        //signupform.querySelector('.output').innerHTML = errorMessage;
+    });
 }
 
 function _reset(event) {
-	const signupform = document.querySelector('signup-form').$.signupform;
-	signupform.reset();
-	signupform.querySelector('.output').innerHTML = '';
+    const signupform = document.querySelector('signup-form').$.signupform;
+    signupform.reset();
+    signupform.querySelector('.output').innerHTML = '';
 }
 HTMLImports.whenReady(() => {
 
-	class PasswordValidator extends Polymer.mixinBehaviors([Polymer.IronValidatorBehavior], Polymer.Element) {
-		static get is() {
-			return 'password-validator';
-		}
+    class PasswordValidator extends Polymer.mixinBehaviors([Polymer.IronValidatorBehavior], Polymer.Element) {
+        static get is() {
+            return 'password-validator';
+        }
 
-		static get properties() {
-			return {
-				errorMessage: {
-					type: String,
-					notify: true
-				}
-			}
-		}
+        static get properties() {
+            return {
+                errorMessage: {
+                    type: String,
+                    notify: true
+                }
+            }
+        }
 
-		ready() {
-			super.ready();
+        ready() {
+            super.ready();
 
-			// Workaround https://github.com/PolymerElements/iron-validator-behavior/issues/30#issuecomment-305643574
-			new Polymer.IronMeta({
-				type: 'validator',
-				key: PasswordValidator.is,
-				value: this
-			});
-		}
+            // Workaround https://github.com/PolymerElements/iron-validator-behavior/issues/30#issuecomment-305643574
+            new Polymer.IronMeta({
+                type: 'validator',
+                key: PasswordValidator.is,
+                value: this
+            });
+        }
 
-		validate(value) {
-			/*if (typeof value=="undefined")
-				return true;*/
-			if (!value) {
-				this.errorMessage = "Please enter password";
-				return false;
-			}
-			if (value.length < 6) {
-				this.errorMessage = "Password should have at least 6 characters";
-				return false;
-			}
-			if (!(value.match(/\d/) && value.match(/[A-Z]/))) {
-				this.errorMessage = "Password should have 1 digit and 1 uppercase symbol";
-				return false;
-			}
-			return true;
-		}
-	}
-	class EqualityValidator extends Polymer.mixinBehaviors([Polymer.IronValidatorBehavior], Polymer.Element) {
-		static get is() {
-			return 'equality-validator';
-		}
-		static get properties() {
-			return {
-				checkEquatTo: {
-					type: String
-				}
-			}
-		}
-		ready() {
-			super.ready();
+        validate(value) {
+            /*if (typeof value=="undefined")
+                return true;*/
+            if (!value) {
+                this.errorMessage = "Please enter password";
+                return false;
+            }
+            if (value.length < 6) {
+                this.errorMessage = "Password should have at least 6 characters";
+                return false;
+            }
+            if (!(value.match(/\d/) && value.match(/[A-Z]/))) {
+                this.errorMessage = "Password should have 1 digit and 1 uppercase symbol";
+                return false;
+            }
+            return true;
+        }
+    }
+    class EqualityValidator extends Polymer.mixinBehaviors([Polymer.IronValidatorBehavior], Polymer.Element) {
+        static get is() {
+            return 'equality-validator';
+        }
+        static get properties() {
+            return {
+                checkEquatTo: {
+                    type: String
+                }
+            }
+        }
+        ready() {
+            super.ready();
 
-			// Workaround https://github.com/PolymerElements/iron-validator-behavior/issues/30#issuecomment-305643574
-			new Polymer.IronMeta({
-				type: 'validator',
-				key: EqualityValidator.is,
-				value: this
-			});
-		}
+            // Workaround https://github.com/PolymerElements/iron-validator-behavior/issues/30#issuecomment-305643574
+            new Polymer.IronMeta({
+                type: 'validator',
+                key: EqualityValidator.is,
+                value: this
+            });
+        }
 
-		validate(value) {
-			/*if (typeof value=="undefined")
-				return true;*/
-			return value === this.checkEqualTo;
-		}
-	}
-	class UsernameValidator extends Polymer.mixinBehaviors([Polymer.IronValidatorBehavior], Polymer.Element) {
-		static get is() {
-			return 'username-validator';
-		}
-		static get properties() {
-			return {
-				errorMessage: {
-					type: String,
-					notify: true
-				},
-				oldresult: {
-					type: Boolean
-				},
-				alreadyTaken: {
-					type: String
-				},
-				oldvalue: {
-					type: String
-				}
-			}
-		}
-		ready() {
-			super.ready();
-			this.oldvalue = null;
-			this.oldresult = false;
-			this.alreadyTaken = "";
+        validate(value) {
+            /*if (typeof value=="undefined")
+                return true;*/
+            return value === this.checkEqualTo;
+        }
+    }
+    class UsernameValidator extends Polymer.mixinBehaviors([Polymer.IronValidatorBehavior], Polymer.Element) {
+        static get is() {
+            return 'username-validator';
+        }
+        static get properties() {
+            return {
+                errorMessage: {
+                    type: String,
+                    notify: true
+                },
+                oldresult: {
+                    type: Boolean
+                },
+                alreadyTaken: {
+                    type: String
+                },
+                oldvalue: {
+                    type: String
+                }
+            }
+        }
+        ready() {
+            super.ready();
+            this.oldvalue = null;
+            this.oldresult = false;
+            this.alreadyTaken = "";
 
-			// Workaround https://github.com/PolymerElements/iron-validator-behavior/issues/30#issuecomment-305643574
-			new Polymer.IronMeta({
-				type: 'validator',
-				key: UsernameValidator.is,
-				value: this
-			});
-		}
+            // Workaround https://github.com/PolymerElements/iron-validator-behavior/issues/30#issuecomment-305643574
+            new Polymer.IronMeta({
+                type: 'validator',
+                key: UsernameValidator.is,
+                value: this
+            });
+        }
 
-		validate(value) {
-			if (typeof value == "undefined")
-				return true;
-			console.log("AT " + this.alreadyTaken + " ov " + this.oldvalue + " v " + value);
-			if (this.alreadyTaken.length && (this.oldvalue == value || this.oldvalue==null)) {
-				this.oldvalue = value;
-				this.errorMessage = this.alreadyTaken;
-				this.oldresult = false;
-				return false;
-			} else if (this.oldvalue == value)
-				return this.oldresult;
-			this.alreadyTaken = "";
-			this.oldvalue = value;
-			if (!value || value.length < 4) {
-				this.errorMessage = "Username should be at least 4 character long.";
-				this.oldresult = false;
-				return this.oldresult;
-			}
-			let res = /^[A-Za-z0-9_\-]+$/.test(value);
-			if (!res) {
-				this.errorMessage = "Username should contain only digits, letters, dashes or underscores.";
-				this.oldresult = false;
-				return this.oldresult;
-			}
-			this.oldresult = true;
-			return true;
-		}
-	}
-	class SignupForm extends Polymer.Element {
-		static get is() {
-			return 'signup-form';
-		}
-		static get properties() {
-			return {
-				data: {
-					type: Object,
-					value: {},
-					notify: true
-				},
-				passwordErrorMessage: {
-					type: String
-				},
-				usernameErrorMessage: {
-					type: String
-				},
-				usernameTaken: {
-					type: String
-				}
-			}
-		}
+        validate(value) {
+            if (typeof value == "undefined")
+                return true;
+            console.log("AT " + this.alreadyTaken + " ov " + this.oldvalue + " v " + value);
+            if (this.alreadyTaken.length && (this.oldvalue == value || this.oldvalue==null)) {
+                this.oldvalue = value;
+                this.errorMessage = this.alreadyTaken;
+                this.oldresult = false;
+                return false;
+            } else if (this.oldvalue == value)
+                return this.oldresult;
+            this.alreadyTaken = "";
+            this.oldvalue = value;
+            if (!value || value.length < 4) {
+                this.errorMessage = "Username should be at least 4 character long.";
+                this.oldresult = false;
+                return this.oldresult;
+            }
+            let res = /^[A-Za-z0-9_\-]+$/.test(value);
+            if (!res) {
+                this.errorMessage = "Username should contain only digits, letters, dashes or underscores.";
+                this.oldresult = false;
+                return this.oldresult;
+            }
+            this.oldresult = true;
+            return true;
+        }
+    }
+    class SignupForm extends Polymer.Element {
+        static get is() {
+            return 'signup-form';
+        }
+        static get properties() {
+            return {
+                data: {
+                    type: Object,
+                    value: {},
+                    notify: true
+                },
+                passwordErrorMessage: {
+                    type: String
+                },
+                usernameErrorMessage: {
+                    type: String
+                },
+                usernameTaken: {
+                    type: String
+                },
+                clientNamesList: {
+                    type: Array,
+                    value: []
+                }
+            }
+        }
 
-		_presubmit(e) {
-			console.log('presubmit params', this.$.signupform.request.params);
-			console.log('presubmit body', this.$.signupform.request.body);
-		}
+        _presubmit(e) {
+            console.log('presubmit params', this.$.signupform.request.params);
+            console.log('presubmit body', this.$.signupform.request.body);
+        }
+        
+        onClietNameSelected(event) {
+            this.$.clientnames_drop.set('invalid',(!this.$.clientnames_list.selected || !this.$.clientnames_list.selected.length)?true:false);
+        }
 
-		ready() {
-			super.ready();
-			let dom = this.$;
-			let suf = dom.signupform;
-			let params = getUrlParameters();
-			let p;
-			if (p = params.get('error')) {
-				this.usernameTaken = "Error "+p+" in signup!";
-			}
-			if (p = params.get('username'))
-				this.set('data.username',p);
-			if (p = params.get('password')) {
-				this.set('data.password',p);
-				this.set('data.repeat_password',p);
-			} else
-				this.set('data.repeat_password','');
-			let cl = function(event) {
-				console.log("Change " + event.target.id);
-				console.log("1) " + dom.username.validate());
-				console.log("2) " + dom.password.validate());
-				console.log("3) " + dom.repeat_password.validate());
-				console.log("4) " + suf.validate());
-				console.log("5) " + suf._form.checkValidity());
-				let vale = suf._getValidatableElements();
-				vale.forEach(function(el, idx) {
-					if (el['validate'])
-						console.log("" + (6 + idx) + ") " + el.id + " " + el.validate());
-				});
+        ready() {
+            super.ready();
+            let dom = this.$;
+            let suf = dom.signupform;
+            let params = getUrlParameters();
+            let p;
+            dom.clientnames_drop.set('invalid',true);
+            let request = dom.getclientnames.generateRequest();
+            request.completes.then(function(req) {
+                console.log("[Completes req]");
+                this.set('clientNamesList',req.xhr.response);
+            }.bind(this), function(rejected) {
+                console.log("[GetClientNames] Rejected req "+JSON.stringify(rejected.request));
+                signupform.fire('change');
+                //signupform.querySelector('.output').innerHTML = errorMessage;
+            });
+            if (p = params.get('error')) {
+                this.usernameTaken = "Error "+p+" in signup!";
+            }
+            if (p = params.get('username'))
+                this.set('data.username',p);
+            if (p = params.get('password')) {
+                this.set('data.password',p);
+                this.set('data.repeat_password',p);
+            } else
+                this.set('data.repeat_password','');
+            let cl = function(event) {
+                console.log("Change " + event.target.id);
+                console.log("1) " + dom.username.validate());
+                console.log("2) " + dom.password.validate());
+                console.log("3) " + dom.repeat_password.validate());
+                console.log("4) " + suf.validate());
+                console.log("5) " + suf._form.checkValidity());
+                let vale = suf._getValidatableElements();
+                vale.forEach(function(el, idx) {
+                    if (el['validate'])
+                        console.log("" + (6 + idx) + ") " + el.id + " " + el.validate());
+                });
 
-				let v1 = dom.username.validate(),
-					v2 = dom.password.validate(),
-					v3 = dom.repeat_password.validate();
-				dom.signupsubmit.disabled = !(v1 && v2 && v3);
-			}
-			dom.username.addEventListener('input', cl);
-			dom.password.addEventListener('input', cl);
-			dom.repeat_password.addEventListener('input', cl);
-			suf.addEventListener('change', cl);
-			suf.addEventListener('iron-form-presubmit', function() {
-				// this.request.method = 'put';
-				console.log('presubmit params', suf.request.params);
-				console.log('presubmit body', suf.request.body);
-			});
+                let v1 = dom.username.validate(),
+                    v2 = dom.password.validate(),
+                    v3 = dom.repeat_password.validate(),
+                    v4 = !dom.clientnames_drop.invalid;
+                dom.signupsubmit.disabled = !(v1 && v2 && v3 && v4);
+            }
+            dom.username.addEventListener('input', cl);
+            dom.password.addEventListener('input', cl);
+            dom.repeat_password.addEventListener('input', cl);
+            suf.addEventListener('change', cl);
+            suf.addEventListener('iron-form-presubmit', function() {
+                // this.request.method = 'put';
+                console.log('presubmit params', suf.request.params);
+                console.log('presubmit body', suf.request.body);
+            });
 
-			suf.addEventListener('iron-form-submit', function(event) {
-				dom.spinner.active = false;
-				dom.spinner.hidden = true;
-				dom.signupsubmit.disabled = false;
-				document.querySelector('.output').innerHTML = JSON.stringify(event.detail);
-			});
+            suf.addEventListener('iron-form-submit', function(event) {
+                dom.spinner.active = false;
+                dom.spinner.hidden = true;
+                dom.signupsubmit.disabled = false;
+                document.querySelector('.output').innerHTML = JSON.stringify(event.detail);
+            });
 
-			suf.addEventListener('iron-form-response', function(e) {
-				const response = e.detail.response;
-				document.querySelector('.output').innerHTML = JSON.stringify(response, null, 2);
-			});
-		}
-		submit() {
-			let params = getUrlParameters();
-			let v;
-			this.shadowRoot.querySelector('[name="redirect_uri"]').value = (v = params.get('redirect_uri'))?v:"";
-			this.shadowRoot.querySelector('[name="client_id"]').value = (v = params.get('client_id'))?v:"";
-			this.shadowRoot.querySelector('[name="redirect_uri"]').value = (v = params.get('redirect_uri'))?v:"";
-			this.shadowRoot.querySelector('[name="state"]').value = (v = params.get('state'))?v:"";
-			this.shadowRoot.querySelector('[name="username"]').value = this.shadowRoot.querySelector('paper-input[name="paper_username"]').value;
-			this.shadowRoot.querySelector('[name="password"]').value = this.shadowRoot.querySelector('paper-input[name="paper_password"]').value;
-			this.$.signupforminner.submit();
-		}
+            suf.addEventListener('iron-form-response', function(e) {
+                const response = e.detail.response;
+                document.querySelector('.output').innerHTML = JSON.stringify(response, null, 2);
+            });
+        }
+        submit() {
+            let params = getUrlParameters();
+            let v;
+            this.shadowRoot.querySelector('[name="redirect_uri"]').value = (v = params.get('redirect_uri'))?v:"";
+            this.shadowRoot.querySelector('[name="redirect_uri"]').value = (v = params.get('redirect_uri'))?v:"";
+            this.shadowRoot.querySelector('[name="state"]').value = (v = params.get('state'))?v:"";
+            this.shadowRoot.querySelector('[name="username"]').value = this.shadowRoot.querySelector('paper-input[name="paper_username"]').value;
+            this.shadowRoot.querySelector('[name="password"]').value = this.shadowRoot.querySelector('paper-input[name="paper_password"]').value;
+            this.shadowRoot.querySelector('[name="clientname"]').value = this.shadowRoot.querySelector('#clientnames_list').selected;
+            this.$.signupforminner.submit();
+        }
 
-	}
-	window.customElements.define(SignupForm.is, SignupForm);
-	window.customElements.define(PasswordValidator.is, PasswordValidator);
-	window.customElements.define(UsernameValidator.is, UsernameValidator);
-	window.customElements.define(EqualityValidator.is, EqualityValidator);
-	/*const signupform = document.getElementById('signupform');
-	const signupsubmit = document.getElementById('signupsubmit');
-	const spinner = document.getElementById('spinner');*/
+    }
+    window.customElements.define(SignupForm.is, SignupForm);
+    window.customElements.define(PasswordValidator.is, PasswordValidator);
+    window.customElements.define(UsernameValidator.is, UsernameValidator);
+    window.customElements.define(EqualityValidator.is, EqualityValidator);
+    /*const signupform = document.getElementById('signupform');
+    const signupsubmit = document.getElementById('signupsubmit');
+    const spinner = document.getElementById('spinner');*/
 });
 </script>
 </body>

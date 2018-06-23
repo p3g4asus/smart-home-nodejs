@@ -84,6 +84,7 @@ const Auth = {
             clientSecret: 'hIMH3uWlMVrqa7FAbKLBoNUMCyLCtv'
         }*/
     },
+    clientsuser: {},
     tokens: {
         /*'psokmCxKjfhk7qHLeYd1': {
             uid: '1234',
@@ -252,11 +253,13 @@ const Auth = {
         return Auth.userobj[uid].tokens['access'].s;
     },
 
-    loadUserTokens: function(uid,clientId,types) {
+    loadUserTokens: function(uid,types) {
         return new Promise(function(resolve,reject) {
-            let user;
+            let user,clientId;
             if (!(user = Auth.userobj[uid]))
                 reject(100);
+            else if (!(clientId = Auth.clientsuser[user.clientname]))
+                reject(200);
             else {
                 user.loadTokens(clientId,types).then(function(toks) {
                     Auth.putTokensInDB(toks);
@@ -289,23 +292,34 @@ const Auth = {
         });
     },
 
-    getUser: function(username, password, enc, clientId) {
+    getUser: function(username, password, enc) {
         let myuser;
         return User.authenticate(username, password, enc).then(
             function(us)  {
                 myuser = us;
-                return us.loadTokens(clientId,['access','refresh']);
+                let clientId = Auth.clientsuser[us.clientname];
+                if (clientId)
+                    return us.loadTokens(clientId,['access','refresh']);
+                else
+                    return Promise.reject(1852);
             }).then(function(toks) {
                 Auth._putUserInDB(myuser);
                 return myuser;
             });
     },
 
-    loadClient: function(clientid,secret) {
-        Auth.clients[clientid] = {
-            clientId: clientid,
-            clientSecret: secret
+    clientByUsername: function(username) {
+        return Auth.clientsuser[username];
+    },
+
+    loadClient: function(client) {
+        Auth.clients[client.stringid] = {
+            clientId: client.stringid,
+            clientSecret: client.secret,
+            apikey: client.apikey,
+            username: client.username
         };
+        Auth.clientsuser[client.username] = client.stringid;
     },
     /**
      * checks if user and auth exist and match

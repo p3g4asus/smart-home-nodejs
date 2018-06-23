@@ -30,13 +30,13 @@ const authProvider = require('./auth-provider');
 function cloudInit() {
     const User = require('./users');
     // Check that the API key was changed from the default
-    if (config.smartHomeProviderApiKey === '<API_KEY>') {
+    /*if (config.smartHomeProviderApiKey === '<API_KEY>') {
         console.warn('You need to set the API key in config-provider.\n' +
             'Visit the Google Cloud Console to generate an API key for your project.\n' +
             'https://console.cloud.google.com\n' +
             'Exiting...');
         process.exit();
-    }
+    }*/
     app.use(morgan('dev'));
     app.use(bodyParser.json());
     app.use(bodyParser.urlencoded({
@@ -509,6 +509,14 @@ function cloudInit() {
         });
     });
 
+    app.get('/clientnames', function(req, resp) {
+        resp.status(200).set({
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        })
+        .send(Object.keys(datastore.Auth.clientsuser));
+    });
+
     app.get('/checkuser', function(req, resp) {
         let us = req.query['us'];
         if (!us) {
@@ -554,8 +562,8 @@ function cloudInit() {
         if (req.query.hasOwnProperty('redirect_uri') && req.query.redirect_uri.length)
             redir = req.query.redirect_uri;
         resp.set('Content-Type', json?'application/json':'text/javascript');
-        let path = util.format('/login?client_id=%s&redirect_uri=%s&state=%s',
-            config.smartHomeProviderGoogleClientId, encodeURIComponent(redir), 'cool_jazz');
+        let path = util.format('/login?redirect_uri=%s&state=%s',
+            encodeURIComponent(redir), 'cool_jazz');
         let code = 0;
         let send = null;
         if (!req.session.user) {
@@ -691,7 +699,6 @@ function cloudInit() {
         var querystring = require('querystring');
         var postobj = {
             'redirect_uri': '/frontend',
-            'client_id': config.smartHomeProviderGoogleClientId,
             'state': 'mfz_over',
             'username': us.username,
             'password2': us.password
@@ -796,7 +803,7 @@ function cloudInit() {
         //app.smartHomeExec(uid, device);
         //var lnk = config.smartHomeProviderCloudEndpoint+'/smart-home-api/device-connection/'+device.id;
         //makeReq(lnk);
-        return datastore.Auth.loadUserTokens(uid,config.smartHomeProviderGoogleClientId,["access"]).then(function(token) {
+        return datastore.Auth.loadUserTokens(uid,["access"]).then(function(token) {
             console.log("[AddDevice"+uid+"] Device: "+device.id);
             if (token['access']) {
                 var EventSource = require('eventsource');
@@ -827,7 +834,7 @@ function cloudInit() {
         //app.smartHomeExec(uid, device);
         //var lnk = config.smartHomeProviderCloudEndpoint+'/smart-home-api/device-connection/'+device.id;
         //makeReq(lnk);
-        return datastore.Auth.loadUserTokens(uid,config.smartHomeProviderGoogleClientId,["access"]).then(function(token) {
+        return datastore.Auth.loadUserTokens(uid,["access"]).then(function(token) {
             if (token['access']) {
                 const options = {
                     method: 'POST',
@@ -868,7 +875,7 @@ function cloudInit() {
             resolve = res;
             reject = rej;
         });
-        datastore.Auth.loadUserTokens(uid,config.smartHomeProviderGoogleClientId,["access"]).then(function(token) {
+        datastore.Auth.loadUserTokens(uid,["access"]).then(function(token) {
             if (token['access']) {
                 let options = {
                     method: 'POST',
@@ -930,7 +937,8 @@ function cloudInit() {
         if (lastRequestSync[uid] && ts - lastRequestSync[uid] < 7000)
             return;
         lastRequestSync[uid] = ts;
-        const apiKey = config.smartHomeProviderApiKey;
+        let k1 = datastore.Auth.clientsuser[datastore.Auth.userobj[uid].clientname];
+        const apiKey = datastore.Auth.clients[k1].apikey;
         const options = {
             method: 'POST',
             headers: {
@@ -1142,8 +1150,10 @@ function cloudInit() {
     })
 }
 
-config.init().then(function() {
-    datastore.Auth.loadClient(config.smartHomeProviderGoogleClientId,config.smartHomeProvideGoogleClientSecret);
+config.init().then(function(cc) {
+    cc.forEach(function(c) {
+        datastore.Auth.loadClient(c);
+    });
     cloudInit();
 }).catch(function (err) {
     console.log("[Error] Error "+err+" in the init phase. Please check paramethers.")

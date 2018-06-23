@@ -128,16 +128,16 @@ Config.printConfigFlag = function() {
     });
 }
 Config.devPortSmartHome = "3000";
-Config.smartHomeProviderGoogleUser = ""; // client id that Google will use
+//Config.smartHomeProviderGoogleUser = ""; // client id that Google will use
 //Config.smartHomeProviderGoogleClientId = "ZxjqWpsYj3"; // client id that Google will use
 //Config.smartHomeProvideGoogleClientSecret = "hIMH3uWlMVrqa7FAbKLBoNUMCyLCtv"; // client secret that Google will use
 //Config.smartHomeProviderApiKey = "AIzaSyBNZ0MwFCCjPOiB-Zt0NBancTpE5slwQqs"; // client API Key generated on the console
 Config.flag = 0;
 Config.flag = Config.__setInside("START_TYPE","NGROK",
         "AUTO_DEV","NO","RESET_DEV","YES","WELL_KNOWN","NO","AUTOLOGIN","NO");
-Config.smartHomeProvideGoogleClientSecret = '';
-Config.smartHomeProviderGoogleClientId = '';
-Config.smartHomeProviderApiKey = '<API_KEY>';
+//Config.smartHomeProvideGoogleClientSecret = '';
+//Config.smartHomeProviderGoogleClientId = '';
+//Config.smartHomeProviderApiKey = '<API_KEY>';
 // Client service key to use for reporting state
 Config.jwt = require('./jwt-key.json');
 
@@ -151,8 +151,6 @@ function init() {
             Config.devPortSmartHome = value.split("=")[1];
         else if (value.includes("access-expire="))
             require('./tokens').ACCESS_EXPIRE = parseInt(value.split("=")[1]);
-        else if (value.includes("username="))
-            Config.smartHomeProviderGoogleUser = value.split("=")[1];
         else if (value.startsWith("-f")) {
             try {
                 let nmval = value.substring(2);
@@ -166,24 +164,17 @@ function init() {
     if (!Config.smartHomeProviderCloudEndpoint)
         Config.smartHomeProviderCloudEndpoint = "http://localhost:3000";
     exports.devPortSmartHome = Config.devPortSmartHome;
-    exports.smartHomeProviderGoogleClientId = Config.smartHomeProviderGoogleClientId;
-    exports.smartHomeProvideGoogleClientSecret = Config.smartHomeProvideGoogleClientSecret;
     exports.smartHomeProviderCloudEndpoint = Config.smartHomeProviderCloudEndpoint;
-    exports.smartHomeProviderApiKey = Config.smartHomeProviderApiKey;
-    exports.smartHomeProviderGoogleUser = Config.smartHomeProviderGoogleUser;
     exports.getInside = Config.getInside;
     exports.setInside = Config.setInside;
     return new Promise(function(resolve,reject) {
         redis_client.on("ready",function() {
-            Client.findByUsername(Config.smartHomeProviderGoogleUser).then(
+            Client.findAll().then(
                 function(cc) {
-                    if (cc && typeof cc == "object") {
-                        exports.smartHomeProvideGoogleClientSecret = cc.secret;
-                        exports.smartHomeProviderGoogleClientId = cc.stringid;
-                        exports.smartHomeProviderApiKey = cc.apikey;
+                    if (cc && typeof cc == "object" && cc.length) {
                         console.log("[OK] config: ", exports);
                         Config.printConfigFlag();
-                        resolve();
+                        resolve(cc);
                     }
                     else
                         reject(100);

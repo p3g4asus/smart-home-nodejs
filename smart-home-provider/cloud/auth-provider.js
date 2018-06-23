@@ -48,8 +48,8 @@ Auth.checkAuth = function(request,response,redir,checkRegistration) {
         error = 4;
     if (error) {
         console.log('[CheckAuth] Auth error '+error+" at = "+authToken);
-        let path = require('util').format('/login?client_id=%s&redirect_uri=%s&state=%s',
-                require('./config-provider').smartHomeProviderGoogleClientId, encodeURIComponent(redir), 'cool_jazz');
+        let path = require('util').format('/login?redirect_uri=%s&state=%s',
+                encodeURIComponent(redir), 'cool_jazz');
         response.status(400).set({
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Headers': 'Content-Type, Authorization'
@@ -73,8 +73,10 @@ SmartHomeModel.getAccessToken = function(code) {
             reject('invalid code');
         if (new Date(authCode.expiresAt) < Date.now())
             reject('expired code');
+        else if (!authstore.userobj[authCode.uid] || authCode.clientId!=authstore.clientsuser[authstore.userobj[authCode.uid].clientname])
+            reject('uid and client_id do not match');
         else {
-            authstore.loadUserTokens(authCode.uid,authCode.clientId,["access","refresh"]).then(function(tokens){
+            authstore.loadUserTokens(authCode.uid,["access","refresh"]).then(function(tokens){
                 let acctok;
                 if (!(acctok = tokens["access"]) || !tokens["refresh"])
                     reject("Error generating tokens: "+JSON.stringify(tokens));
@@ -167,9 +169,9 @@ Auth.registerAuth = function(app) {
 
         let user = req.session.user;
         // Redirect anonymous users to login page.
-        if (!user) {
-            return res.redirect(util.format('/login?client_id=%s&redirect_uri=%s&redirect=%s&state=%s',
-                client_id, encodeURIComponent(redirect_uri), req.path, state));
+        if (!user || authstore.clientsuser[user.clientname]!=client_id) {
+            return res.redirect(util.format('/login?redirect_uri=%s&redirect=%s&state=%s',
+                encodeURIComponent(redirect_uri), req.path, state));
         }
 
         console.log('[OAUTH] login successful ', user.username);
@@ -195,19 +197,19 @@ Auth.registerAuth = function(app) {
         let config = require('./config-provider');
         let us = new User({
             "username": req.body.username,
-            "password": req.body.password
+            "password": req.body.password,
+            "clientname": req.body.clientname,
         });
         let dec = function(a, b) {
             return a && a.length ? a : b;
         }
         us.save().then(function(user) {
-            return res.redirect(util.format('%s?client_id=%s&redirect_uri=%s&state=%s&response_type=code',
-                '/login', dec(req.body.client_id, config.smartHomeProviderGoogleClientId),
-                encodeURIComponent('/options'), req.body.state));
+            return res.redirect(util.format('%s?redirect_uri=%s&state=%s&response_type=code',
+                '/login', encodeURIComponent('/options'), req.body.state));
         }).catch(function(err) {
             console.log(err + ' not a user', req.body.username);
-            return res.redirect(util.format('%s?client_id=%s&redirect_uri=%s&state=%s&response_type=code&username=%s&password=%s',
-                '/signup', dec(req.body.client_id, config.smartHomeProviderGoogleClientId),
+            return res.redirect(util.format('%s?redirect_uri=%s&state=%s&response_type=code&username=%s&password=%s',
+                '/signup',
                 encodeURIComponent(dec(req.body.redirect_uri, '/login')),
                 req.body.state, req.body.username, req.body.password));
         });
@@ -226,18 +228,17 @@ Auth.registerAuth = function(app) {
             pw = req.body.password;
             enc = false;
         }
-        if (!pw || !req.body.username || !req.body.client_id || req.body.client_id=="undefined") {
+        if (!pw || !req.body.username) {
             let dec = function(a, b) {
                 return a && a.length && a!="undefined"? a : b;
             }
             let config = require('./config-provider');
-            res.redirect(util.format('%s?client_id=%s&redirect_uri=%s&state=%s&response_type=code',
-                '/login', dec(req.body.client_id, config.smartHomeProviderGoogleClientId),
+            res.redirect(util.format('%s?redirect_uri=%s&state=%s&response_type=code',
+                '/login',
                 encodeURIComponent('/frontend'), dec(req.body.state,"redir_ok")));
         }
         else {
-            console.log("login enc "+enc+" "+req.body.username+" cl = "+req.body.client_id);
-            authstore.getUser(req.body.username, pw, enc,req.body.client_id).then(
+            authstore.getUser(req.body.username, pw, enc).then(
                 function(user) {
                     console.log('logging in ', user);
                     req.session.user = user;
@@ -256,7 +257,7 @@ Auth.registerAuth = function(app) {
                     path = decodeURIComponent(path);
 
                     console.log('login successful ', user.username);
-                    let authCode = authstore.generateAuthCode(user.uid, req.body.client_id);
+                    let authCode = authstore.generateAuthCode(user.uid, authstore.clientsuser[user.clientname]);
 
                     if (authCode) {
                         console.log('authCode successful ', authCode);
@@ -264,14 +265,14 @@ Auth.registerAuth = function(app) {
                             path, authCode, req.body.state));
                     } else {
                         console.log('authCode failed');
-                        return res.redirect(util.format('%s?client_id=%s&redirect_uri=%s&state=%s&response_type=code',
-                            path, req.body.client_id, encodeURIComponent(req.body.redirect_uri), req.body.state));
+                        return res.redirect(util.format('%s?redirect_uri=%s&state=%s&response_type=code',
+                            path, encodeURIComponent(req.body.redirect_uri), req.body.state));
                     }
                 }
             ).catch(function(err) {
-                console.log(err + ' not a user', req.body.username);
-                return res.redirect(util.format('%s?client_id=%s&redirect_uri=%s&state=%s&response_type=code',
-                    '/frontend', req.body.client_id, encodeURIComponent(req.body.redirect_uri), req.body.state));
+                console.log('[Login] Error '+err + ' not a user', req.body.username);
+                return res.redirect(util.format('%s?redirect_uri=%s&state=%s&response_type=code',
+                    '/frontend', encodeURIComponent(req.body.redirect_uri), req.body.state));
             });
         }
     });
@@ -429,8 +430,10 @@ function handleRefreshToken(req) {
             reject('token is expired');
         else if (!(uid = tok.uid))
             reject('invalid user associated to the token');
+        else if (!authstore.userobj[uid] || client_id!=authstore.clientsuser[authstore.userobj[uid].clientname])
+            reject('user cannot be used with this client');
         else {
-            authstore.loadUserTokens(uid,client_id,['access']).then(function(toks) {
+            authstore.loadUserTokens(uid,['access']).then(function(toks) {
                 let acctok;
                 if (acctok = toks['access'])
                     resolve({
@@ -448,14 +451,14 @@ function handleRefreshToken(req) {
     });
 }
 
-function login(req, res) {
+/*function login(req, res) {
     return res.render('login', {
         redirect: encodeURIComponent(req.query.redirect),
         client_id: req.query.client_id,
         state: req.query.state,
         redirect_uri: encodeURIComponent(req.query.redirect_uri)
     });
-}
+}*/
 
 exports.registerAuth = Auth.registerAuth;
 exports.getAccessToken = Auth.getAccessToken;
