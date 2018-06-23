@@ -129,13 +129,13 @@ var MFZClient = (function(){
             if (!that.currentPromise)
                 that.retry = 0;
             var ts = Date.now();
-
+            let idxcr;
             that.currentOut+=data.toString();
-            if (that.currentOut.charAt(that.currentOut.length-1)=='\n') {
+            while ((idxcr = that.currentOut.indexOf('\n'))>=0) {
                 try {
-                    data = that.currentOut;
+                    data = that.currentOut.substr(0,idxcr+1);
                     //console.log('[TCPC' + that.id + '] Received: ' + data);
-                    that.currentOut = "";
+                    that.currentOut = idxcr+1>=that.currentOut.length?"":that.currentOut.substr(idxcr+1);
                     that.lastMsgTs = 0;
                     var res = JSON.parse(data);
                     if (res && res.action) {
@@ -178,7 +178,7 @@ var MFZClient = (function(){
                     //console.trace();
                 }
             }
-            else if (that.lastMsgTs && ts-that.lastMsgTs>2000) {
+            if (that.lastMsgTs && ts-that.lastMsgTs>2000) {
                 that.currentOut = "";
                 that.lastMsgTs = 0;
             }
