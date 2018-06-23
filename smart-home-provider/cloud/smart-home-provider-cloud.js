@@ -940,11 +940,11 @@ function cloudInit() {
             'agentUserId': uid
         };
         options.body = JSON.stringify(optBody);
-        console.info("POST REQUEST_SYNC", requestSyncEndpoint + apiKey);
-        console.info(`POST payload: ${JSON.stringify(options)}`);
+        console.info("[REQUEST_SYNC" + uid+"] ", requestSyncEndpoint + apiKey);
+        //console.info(`POST payload: ${JSON.stringify(options)}`);
         fetch(requestSyncEndpoint + apiKey, options).
         then(function(res) {
-            console.log("request-sync response", res.status, res.statusText);
+            console.log("[REQUEST_SYNC" + uid+"]  Response", res.status, res.statusText);
         });
     };
 
