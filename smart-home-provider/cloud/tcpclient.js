@@ -14,7 +14,7 @@ var MFZClient = (function(){
         that.timerPing = null;
         that.currentOut = "";
         that.lastMsgTs = 0;
-        that.msgidx = 6859;
+        that.msgidx = parseInt(id)*100000+1;
         that.devicedl = false;
         that.errorHandler = function(err) {
             console.log("[TCPC] "+err);
