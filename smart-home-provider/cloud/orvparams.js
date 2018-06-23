@@ -1,5 +1,6 @@
 const tcpclient = require('./tcpclient');
 const VERSION = "1.5";
+const DEVICEID_FACTOR = 1000;
 var redis_client = require("./redisconf");
 var Auth = require("./datastore").Auth;
 var translations = {};
@@ -433,8 +434,19 @@ function devMod(uid,devicesModded) {
 
 function cloneFromTemplate(templ, repl) {
     let obj = replaceObj(templ, repl);
-    if (obj.id=="0") cloneFromTemplate.nicks = {};
-    let nicks = cloneFromTemplate.nicks;
+    let id = obj.id;
+    let strfact = DEVICEID_FACTOR+"";
+    strfact = strfact.substr(strfact.indexOf('0'));
+    let u = '0';
+    if (id.length>strfact.length) {
+        u = id.substr(0,id.length-strfact.length);
+    }
+    if (id=='0' || id.endsWith(strfact)) {
+        if (!cloneFromTemplate.hasOwnProperty('nicks'))
+            cloneFromTemplate.nicks = {};
+        cloneFromTemplate.nicks[u] = {};
+    }
+    let nicks = cloneFromTemplate.nicks[u];
     let n0 = obj.properties.name.nicknames[0];
     //console.log("[CloneTemp] N0 "+n0+" "+JSON.stringify(nicks));
     if (nicks.hasOwnProperty(n0)) {
@@ -455,200 +467,205 @@ function cloneFromTemplate(templ, repl) {
 }
 
 function processDeviceDl(uid,objdata){
-    var ud = DBData[uid];
-    var ds = createDeviceTable(objdata,ud.user);
-    ud["devicetable"] = ds;
-    let configuredLocale = ud.user.options.language;
-    var devices = [];
-    var volumeNeeded = false;
-    var keyDevices = {"power":0};
-    let idxoffset = parseInt(uid)*1000;
-    let defaultremote = ud.user.options.defaultremote;
-    if (defaultremote.length==0) {
-        ud.filters.some(function(key) {
-            if (key.indexOf(':')>0) {
-                defaultremote = key;
-                return true;
-            }
-            else
-                return false;
-        });
+    try {
+        var ud = DBData[uid];
+        var ds = createDeviceTable(objdata,ud.user);
+        ud["devicetable"] = ds;
+        let configuredLocale = ud.user.options.language;
+        var devices = [];
+        var volumeNeeded = false;
+        var keyDevices = {"power":0};
+        let idxoffset = parseInt(uid)*DEVICEID_FACTOR;
+        let defaultremote = ud.user.options.defaultremote;
         if (defaultremote.length==0) {
-            Object.keys(ds.remote).some(function(key) {
-                if (ds.remote[key].filtered) {
+            ud.filters.some(function(key) {
+                if (key.indexOf(':')>0) {
                     defaultremote = key;
                     return true;
                 }
                 else
                     return false;
             });
-        }
-    }
-    var defs = defaultremote.split(':');
-    var defRemote = "";
-    var defDevice = "";
-    if (defs.length==2) {
-        defRemote = defs[1];
-        defDevice = defs[0];
-    }
-    var defRemoteNick = getTranslation(defRemote,configuredLocale);
-    var defDeviceNick = getTranslation(defDevice,configuredLocale);
-    var obj,repl = {};
-    ud.user.options.defaultremote = ud["currentremote"] = defaultremote;
-    ud["nicks"] = {};
-    console.log("[ProcessDevDl" + uid + "] Ecco 1 "+defRemoteNick+"/"+defDeviceNick);
-    Object.keys(ds.remote).forEach(function (key) {
-        let rn;
-        if (ds.remote.hasOwnProperty(key) && (rn = ds.remote[key]).filtered) {
-            repl = {
-                "didx":devices.length+idxoffset,
-                "device":rn["device"],
-                "devicenick":rn["devicenick"],
-                "remote":rn["remote"],
-                "remotenick":rn["remotenick"],
-                "version":VERSION
-            };
-            //console.log("[ProcessDevDl" + uid + "] Ecco 2 "+JSON.stringify(repl));
-
-            if (rn.volumekeys.length)
-                volumeNeeded = true;
-            var regnum = rn.numData!=null?
-                new RegExp(rn.numData.pre+"[0-9]+"+rn.numData.post):null;
-            console.log("[ProcessDevDl" + uid + "] Ecco 2 ");
-            obj = cloneFromTemplate(remoteNumTemplate,repl);
-            console.log("[ProcessDevDl" + uid + "] Ecco 3 "+JSON.stringify(obj));
-            devices.push(obj);
-            for (var i = 0; i<rn.keys.length; i++) {
-                var kn = rn.keys[i];
-                if ((regnum!=null && regnum.exec(kn)) || keyDevices.hasOwnProperty(kn))
-                    continue;
-                keyDevices[kn] = devices.length;
-                repl.didx = devices.length+idxoffset;
-                repl.keynick = rn.keysnick[i];
-                repl.key = kn;
-                repl.remote = defRemote;
-                repl.device = defDevice;
-                repl.devicenick = defDeviceNick;
-                repl.remotenick = defRemoteNick;
-                devices.push(obj = cloneFromTemplate(remoteKeyTemplate,repl));
-                if (mulKeyRegexp.exec(kn))
-                    obj.properties.traits.push('action.devices.traits.Brightness');
-                console.log("[ProcessDevDl" + uid + "] Ecco 4 "+JSON.stringify(obj));
+            if (defaultremote.length==0) {
+                Object.keys(ds.remote).some(function(key) {
+                    if (ds.remote[key].filtered) {
+                        defaultremote = key;
+                        return true;
+                    }
+                    else
+                        return false;
+                });
             }
         }
-    });
-    if (volumeNeeded) {
+        var defs = defaultremote.split(':');
+        var defRemote = "";
+        var defDevice = "";
+        if (defs.length==2) {
+            defRemote = defs[1];
+            defDevice = defs[0];
+        }
+        var defRemoteNick = getTranslation(defRemote,configuredLocale);
+        var defDeviceNick = getTranslation(defDevice,configuredLocale);
+        var obj,repl = {};
+        ud.user.options.defaultremote = ud["currentremote"] = defaultremote;
+        ud["nicks"] = {};
+        console.log("[ProcessDevDl" + uid + "] Ecco 1 "+defRemoteNick+"/"+defDeviceNick);
+        Object.keys(ds.remote).forEach(function (key) {
+            let rn;
+            if (ds.remote.hasOwnProperty(key) && (rn = ds.remote[key]).filtered) {
+                repl = {
+                    "didx":devices.length+idxoffset,
+                    "device":rn["device"],
+                    "devicenick":rn["devicenick"],
+                    "remote":rn["remote"],
+                    "remotenick":rn["remotenick"],
+                    "version":VERSION
+                };
+                //console.log("[ProcessDevDl" + uid + "] Ecco 2 "+JSON.stringify(repl));
+
+                if (rn.volumekeys.length)
+                    volumeNeeded = true;
+                var regnum = rn.numData!=null?
+                    new RegExp(rn.numData.pre+"[0-9]+"+rn.numData.post):null;
+                console.log("[ProcessDevDl" + uid + "] Ecco 2 ");
+                obj = cloneFromTemplate(remoteNumTemplate,repl);
+                console.log("[ProcessDevDl" + uid + "] Ecco 3 "+JSON.stringify(obj));
+                devices.push(obj);
+                for (var i = 0; i<rn.keys.length; i++) {
+                    var kn = rn.keys[i];
+                    if ((regnum!=null && regnum.exec(kn)) || keyDevices.hasOwnProperty(kn))
+                        continue;
+                    keyDevices[kn] = devices.length;
+                    repl.didx = devices.length+idxoffset;
+                    repl.keynick = rn.keysnick[i];
+                    repl.key = kn;
+                    repl.remote = defRemote;
+                    repl.device = defDevice;
+                    repl.devicenick = defDeviceNick;
+                    repl.remotenick = defRemoteNick;
+                    devices.push(obj = cloneFromTemplate(remoteKeyTemplate,repl));
+                    if (mulKeyRegexp.exec(kn))
+                        obj.properties.traits.push('action.devices.traits.Brightness');
+                    console.log("[ProcessDevDl" + uid + "] Ecco 4 "+JSON.stringify(obj));
+                }
+            }
+        });
+        if (volumeNeeded) {
+            repl.version = VERSION;
+            repl.didx = devices.length+idxoffset;
+            repl.remote = defRemote;
+            repl.remotenick = defRemoteNick;
+            repl.device = defDevice;
+            repl.devicenick = defDeviceNick;
+            devices.push(obj = cloneFromTemplate(remoteVolumeTemplate,repl));
+            console.log("[ProcessDevDl" + uid + "] Ecco 5 "+JSON.stringify(obj));
+        }
         repl.version = VERSION;
-        repl.didx = devices.length+idxoffset;
         repl.remote = defRemote;
         repl.remotenick = defRemoteNick;
         repl.device = defDevice;
+        repl.chan = getTranslation("chan",configuredLocale);
         repl.devicenick = defDeviceNick;
-        devices.push(obj = cloneFromTemplate(remoteVolumeTemplate,repl));
-        console.log("[ProcessDevDl" + uid + "] Ecco 5 "+JSON.stringify(obj));
-    }
-    repl.version = VERSION;
-    repl.remote = defRemote;
-    repl.remotenick = defRemoteNick;
-    repl.device = defDevice;
-    repl.chan = getTranslation("chan",configuredLocale);
-    repl.devicenick = defDeviceNick;
-    for (var i = 0; i<9; i++) {
-        repl.didx = devices.length+idxoffset;
-        repl.offset = 100+i*100;
-        devices.push(obj = cloneFromTemplate(remoteBigNumTemplate,repl));
-        console.log("[ProcessDevDl" + uid + "] Ecco 5.1 "+JSON.stringify(obj));
-    }
-    replaceRemote(devices,defDevice,defRemote,ud.user.options.language);
-    Object.keys(ds.sh).forEach(function (key) {
-        var rn;
-        if (ds.sh.hasOwnProperty(key) && ds.sh[key].filtered) {
-            var rn = ds.sh[key];
-            repl = {
-                "didx":devices.length+idxoffset,
-                "device":rn["device"],
-                "devicenick":rn["devicenick"],
-                "remote":defRemote,
-                "remotenick":defRemoteNick,
-                "key":rn["key"],
-                "keynick":rn["keynick"],
-                "version":VERSION
-            };
-            devices.push(obj = cloneFromTemplate(remoteKeyTemplate,repl));
-            console.log("[ProcessDevDl" + uid + "] Ecco 6 "+JSON.stringify(obj));
+        for (var i = 0; i<9; i++) {
+            repl.didx = devices.length+idxoffset;
+            repl.offset = 100+i*100;
+            devices.push(obj = cloneFromTemplate(remoteBigNumTemplate,repl));
+            console.log("[ProcessDevDl" + uid + "] Ecco 5.1 "+JSON.stringify(obj));
         }
-    });
-    Object.keys(ds.switch).forEach(function (key) {
-        if (ds.switch.hasOwnProperty(key) && ds.switch[key].filtered) {
-            repl = {
-                "didx":devices.length+idxoffset,
-                "device":ds.switch[key].device,
-                "devicenick":ds.switch[key].devicenick,
-                "version":VERSION
-            };
-            devices.push(obj = cloneFromTemplate(remoteSwitchTemplate,repl));
-            console.log("[ProcessDevDl" + uid + "] Ecco 7 "+JSON.stringify(obj));
-        }
-    });
-    Object.keys(ds.lightlum).forEach(function (key) {
-        if (ds.lightlum.hasOwnProperty(key) && ds.lightlum[key].filtered) {
-            repl = {
-                "didx":devices.length+idxoffset,
-                "device":ds.lightlum[key].device,
-                "devicenick":ds.lightlum[key].devicenick,
-                "version":VERSION
-            };
-            devices.push(obj = cloneFromTemplate(lightLumTemplate,repl));
-            console.log("[ProcessDevDl" + uid + "] Ecco 8 "+JSON.stringify(obj));
-        }
-    });
-    let olddevices = ud["devices"];
-    let addDev = function(idx) {
-        if (idx<devices.length) {
-            let dev = devices[idx];
-            if (idx==devices.length-1)
-                dev.wait = false;
-            else
-                dev.wait = true;
-            exports.onAdd(uid,dev).then(function(es) {
-                ud.events[dev.id] = es;
-                if (es) {
-                    es.onmessage = deviceClosure("message",dev,uid);
-                    es.onerror = deviceClosure("error",dev,uid);
-                    es.addEventListener('change',deviceClosure("change",dev,uid));
-                }
-                addDev(idx+1);
-            }).catch(function(err) {
-                ud.events[dev.id] = null;
-                addDev(idx+1);
-            });
-        }
-    }
-    let removeDev = function(idx) {
-        if (exports.onRemove && olddevices && idx<olddevices.length) {
-            let dev = devices[idx];
-            dev.wait = true;
-            let es = ud.events[dev.id];
-            if (es) {
-                es.close();
-                es.onmessage = null;
-                es.onerror = null;
-                es.removeAllListeners('change');
+        replaceRemote(devices,defDevice,defRemote,ud.user.options.language);
+        Object.keys(ds.sh).forEach(function (key) {
+            var rn;
+            if (ds.sh.hasOwnProperty(key) && ds.sh[key].filtered) {
+                var rn = ds.sh[key];
+                repl = {
+                    "didx":devices.length+idxoffset,
+                    "device":rn["device"],
+                    "devicenick":rn["devicenick"],
+                    "remote":defRemote,
+                    "remotenick":defRemoteNick,
+                    "key":rn["key"],
+                    "keynick":rn["keynick"],
+                    "version":VERSION
+                };
+                devices.push(obj = cloneFromTemplate(remoteKeyTemplate,repl));
+                console.log("[ProcessDevDl" + uid + "] Ecco 6 "+JSON.stringify(obj));
             }
-            exports.onRemove(uid,dev).then(function() {
-                removeDev(idx+1);
-            },function() {
-                removeDev(idx+1);
-            });
+        });
+        Object.keys(ds.switch).forEach(function (key) {
+            if (ds.switch.hasOwnProperty(key) && ds.switch[key].filtered) {
+                repl = {
+                    "didx":devices.length+idxoffset,
+                    "device":ds.switch[key].device,
+                    "devicenick":ds.switch[key].devicenick,
+                    "version":VERSION
+                };
+                devices.push(obj = cloneFromTemplate(remoteSwitchTemplate,repl));
+                console.log("[ProcessDevDl" + uid + "] Ecco 7 "+JSON.stringify(obj));
+            }
+        });
+        Object.keys(ds.lightlum).forEach(function (key) {
+            if (ds.lightlum.hasOwnProperty(key) && ds.lightlum[key].filtered) {
+                repl = {
+                    "didx":devices.length+idxoffset,
+                    "device":ds.lightlum[key].device,
+                    "devicenick":ds.lightlum[key].devicenick,
+                    "version":VERSION
+                };
+                devices.push(obj = cloneFromTemplate(lightLumTemplate,repl));
+                console.log("[ProcessDevDl" + uid + "] Ecco 8 "+JSON.stringify(obj));
+            }
+        });
+        let olddevices = ud["devices"];
+        let addDev = function(idx) {
+            if (idx<devices.length) {
+                let dev = devices[idx];
+                if (idx==devices.length-1)
+                    dev.wait = false;
+                else
+                    dev.wait = true;
+                exports.onAdd(uid,dev).then(function(es) {
+                    ud.events[dev.id] = es;
+                    if (es) {
+                        es.onmessage = deviceClosure("message",dev,uid);
+                        es.onerror = deviceClosure("error",dev,uid);
+                        es.addEventListener('change',deviceClosure("change",dev,uid));
+                    }
+                    addDev(idx+1);
+                }).catch(function(err) {
+                    ud.events[dev.id] = null;
+                    addDev(idx+1);
+                });
+            }
         }
-        else {
-            ud["devices"] = devices;
-            ud["events"] = {};
-            if (exports.onAdd)
-                addDev(0);
+        let removeDev = function(idx) {
+            if (exports.onRemove && olddevices && idx<olddevices.length) {
+                let dev = devices[idx];
+                dev.wait = true;
+                let es = ud.events[dev.id];
+                if (es) {
+                    es.close();
+                    es.onmessage = null;
+                    es.onerror = null;
+                    es.removeAllListeners('change');
+                }
+                exports.onRemove(uid,dev).then(function() {
+                    removeDev(idx+1);
+                },function() {
+                    removeDev(idx+1);
+                });
+            }
+            else {
+                ud["devices"] = devices;
+                ud["events"] = {};
+                if (exports.onAdd)
+                    addDev(0);
+            }
         }
+        removeDev(0);
     }
-    removeDev(0);
+    catch (e) {
+        console.log(e.stack);
+    }
 }
 
 function doRun(uid,command) {
