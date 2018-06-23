@@ -273,14 +273,14 @@ const Auth = {
 
     putTokensInDB: function(toks) {
         if (toks)
-        Object.keys(toks).forEach(function(t) {
-            if (toks[t])
-                Auth.tokens[toks[t].s] = {
-                    uid: toks[t].uid,
-                    token: toks[t],
-                    userId: toks[t].uid
-                }
-        })
+            Object.keys(toks).forEach(function(t) {
+                if (toks[t])
+                    Auth.tokens[toks[t].s] = {
+                        uid: toks[t].uid,
+                        token: toks[t],
+                        userId: toks[t].uid
+                    }
+            });
     },
 
     getAutologinUsers: function() {

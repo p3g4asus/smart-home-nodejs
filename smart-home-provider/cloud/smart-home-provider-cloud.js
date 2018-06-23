@@ -601,8 +601,12 @@ function cloudInit() {
         }
         resp.status(json?code:200).send(send);
     });
-    if (config.getInside("WELL_KNOWN")=="YES")
-        app.use('/.well-known', express.static("../htdocs/.well-known"));
+    let starttype = config.getInside("START_TYPE");
+    if (config.getInside("WELL_KNOWN")=="YES") {
+        app.use('/.well-known', express.static(
+                ((starttype=="GREENLOCK" || starttype=="GREENLOCKLOCAL")?
+                    "./":"../htdocs/")+"well-known"));
+    }
     app.use('/frontend', express.static('./frontend'));
     app.use('/frontend/', express.static('./frontend'));
     app.use('/', express.static('./frontend'));
@@ -1071,12 +1075,11 @@ function cloudInit() {
             console.log("[ConfigureModule err] Error "+err);
             console.log(err.stack);
         });
-    let starttype = config.getInside("START_TYPE");
     if (starttype=="GREENLOCK" || starttype=="GREENLOCKLOCAL") {
         const PROD = true;
         require('greenlock-express').create({
 
-            server: PROD ? 'https://acme-v01.api.letsencrypt.org/directory' : 'staging'
+            server: PROD ? 'https://acme-v01.api.letsencrypt.org/directory' : 'https://acme-staging.api.letsencrypt.org/directory'
 
                 ,
             email: 'fulminedipegasus@gmail.com'
@@ -1161,6 +1164,7 @@ config.init().then(function(cc) {
             console.log(e.stack);
         }
     });
+    console.log(datastore.Auth.clientsuser);
     cloudInit();
 }).catch(function (err) {
     console.log("[Error] Error "+err+" in the init phase. Please check paramethers.")
