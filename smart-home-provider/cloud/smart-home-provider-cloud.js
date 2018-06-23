@@ -994,10 +994,12 @@ function cloudInit() {
         const {
             google
         } = require('googleapis');
+        let k1 = datastore.Auth.clientsuser[datastore.Auth.userobj[uid].clientname];
+        const jwt = datastore.Auth.clients[k1].jwt;
         const jwtClient = new google.auth.JWT(
-            config.jwt.client_email,
+            jwt.client_email,
             null,
-            config.jwt.private_key, ['https://www.googleapis.com/auth/homegraph'],
+            jwt.private_key, ['https://www.googleapis.com/auth/homegraph'],
             null
         );
 
@@ -1152,7 +1154,12 @@ function cloudInit() {
 
 config.init().then(function(cc) {
     cc.forEach(function(c) {
-        datastore.Auth.loadClient(c);
+        try {
+            datastore.Auth.loadClient(c);
+        }
+        catch(e) {
+            console.log(e.stack);
+        }
     });
     cloudInit();
 }).catch(function (err) {

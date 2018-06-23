@@ -139,7 +139,7 @@ Config.flag = Config.__setInside("START_TYPE","NGROK",
 //Config.smartHomeProviderGoogleClientId = '';
 //Config.smartHomeProviderApiKey = '<API_KEY>';
 // Client service key to use for reporting state
-Config.jwt = require('./jwt-key.json');
+//Config.jwt = require('./jwt-key.json');
 
 function init() {
     if (typeof __argv == "undefined")
@@ -187,5 +187,5 @@ function init() {
         });
     });
 }
-exports.jwt = Config.jwt;
+//exports.jwt = Config.jwt;
 exports.init = init;

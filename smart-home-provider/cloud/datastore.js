@@ -317,7 +317,8 @@ const Auth = {
             clientId: client.stringid,
             clientSecret: client.secret,
             apikey: client.apikey,
-            username: client.username
+            username: client.username,
+            jwt: require('./jwt-key.'+client.username+'.json')
         };
         Auth.clientsuser[client.username] = client.stringid;
     },
