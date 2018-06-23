@@ -271,20 +271,40 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                 let ud = DBData[uid];
                 let cli = ud['client'];
                 let listSync = {};
-                let currentremote;
+                let currentremote = ud["currentremote"];
                 let defRemote;
                 let defDevice;
                 let defs;
                 if (dev.properties.deviceInfo.model=="switch" &&
                     statesObj.hasOwnProperty('on')) {
-                    cli.writecmnd("statechange "+dev.properties.customData["device"]+
-                    " "+(statesObj.on?"1":"0"));
+                    cli.writecmnd("statechange "+dev.properties.customData["device"]+" "+(statesObj.on?"1":"0"));
                     dev.states.on = statesObj.on;
+                }
+                else if (dev.properties.deviceInfo.model=="lightlum") {
+                    let valtosave = -101;
+                    if (statesObj.hasOwnProperty('on') &&
+                        (statesObj['cmd']=='action.devices.commands.OnOff' || !statesObj.hasOwnProperty('brightness'))) {
+                        if (statesObj.on && statesObj.hasOwnProperty('brightness'))
+                            valtosave = statesObj.brightness;
+                        else if (statesObj.on && !statesObj.hasOwnProperty('brightness'))
+                            valtosave = 50;
+                        else if (!statesObj.on && statesObj.hasOwnProperty('brightness'))
+                            valtosave = -statesObj.brightness;
+                        else
+                            valtosave = -50;
+                    }
+                    else if (statesObj.hasOwnProperty('brightness'))
+                        valtosave = statesObj.brightness;
+
+                    if (valtosave>=-100) {
+                        cli.writecmnd("statechange "+dev.properties.customData["device"]+" "+valtosave);
+                        dev.states.on = valtosave>0;
+                        dev.states.brightness = valtosave;
+                    }
                 }
                 else if (dev.properties.deviceInfo.model=="remotevol") {
                     if (statesObj['cmd']=='action.devices.commands.BrightnessAbsolute' &&
                         statesObj.hasOwnProperty('brightness')) {
-                        currentremote = ud["currentremote"];
                         defs = currentremote.split(':');
                         defRemote = defs[1];
                         defDevice = defs[0];
@@ -312,7 +332,6 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                     }
                 }
                 else if (dev.properties.deviceInfo.model=="remotenum") {
-                    currentremote = ud["currentremote"];
                     if (!dev.properties.customData.offset) {
                         currentremote = dev.properties.customData.device+":"+
                             dev.properties.customData.remote;
@@ -340,7 +359,6 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                     }
                 }
                 else if (dev.properties.deviceInfo.model=="remotekey") {
-                    currentremote = ud["currentremote"];
                     defs = currentremote.split(':');
                     defRemote = defs[1];
                     defDevice = defs[0];
@@ -444,6 +462,7 @@ function processDeviceDl(uid,objdata){
     var devices = [];
     var volumeNeeded = false;
     var keyDevices = {"power":0};
+    let idxoffset = parseInt(uid)*1000;
     let defaultremote = ud.user.options.defaultremote;
     if (defaultremote.length==0) {
         ud.filters.some(function(key) {
@@ -482,7 +501,7 @@ function processDeviceDl(uid,objdata){
         let rn;
         if (ds.remote.hasOwnProperty(key) && (rn = ds.remote[key]).filtered) {
             repl = {
-                "didx":devices.length,
+                "didx":devices.length+idxoffset,
                 "device":rn["device"],
                 "devicenick":rn["devicenick"],
                 "remote":rn["remote"],
@@ -504,7 +523,7 @@ function processDeviceDl(uid,objdata){
                 if ((regnum!=null && regnum.exec(kn)) || keyDevices.hasOwnProperty(kn))
                     continue;
                 keyDevices[kn] = devices.length;
-                repl.didx = devices.length;
+                repl.didx = devices.length+idxoffset;
                 repl.keynick = rn.keysnick[i];
                 repl.key = kn;
                 repl.remote = defRemote;
@@ -520,7 +539,7 @@ function processDeviceDl(uid,objdata){
     });
     if (volumeNeeded) {
         repl.version = VERSION;
-        repl.didx = devices.length;
+        repl.didx = devices.length+idxoffset;
         repl.remote = defRemote;
         repl.remotenick = defRemoteNick;
         repl.device = defDevice;
@@ -535,7 +554,7 @@ function processDeviceDl(uid,objdata){
     repl.chan = getTranslation("chan",configuredLocale);
     repl.devicenick = defDeviceNick;
     for (var i = 0; i<9; i++) {
-        repl.didx = devices.length;
+        repl.didx = devices.length+idxoffset;
         repl.offset = 100+i*100;
         devices.push(obj = cloneFromTemplate(remoteBigNumTemplate,repl));
         console.log("[ProcessDevDl] Ecco 5.1 "+JSON.stringify(obj));
@@ -546,7 +565,7 @@ function processDeviceDl(uid,objdata){
         if (ds.sh.hasOwnProperty(key) && ds.sh[key].filtered) {
             var rn = ds.sh[key];
             repl = {
-                "didx":devices.length,
+                "didx":devices.length+idxoffset,
                 "device":rn["device"],
                 "devicenick":rn["devicenick"],
                 "remote":defRemote,
@@ -562,13 +581,25 @@ function processDeviceDl(uid,objdata){
     Object.keys(ds.switch).forEach(function (key) {
         if (ds.switch.hasOwnProperty(key) && ds.switch[key].filtered) {
             repl = {
-                "didx":devices.length,
-                "device":key,
+                "didx":devices.length+idxoffset,
+                "device":ds.switch[key].device,
                 "devicenick":ds.switch[key].devicenick,
                 "version":VERSION
             };
             devices.push(obj = cloneFromTemplate(remoteSwitchTemplate,repl));
             console.log("[ProcessDevDl] Ecco 7 "+JSON.stringify(obj));
+        }
+    });
+    Object.keys(ds.lightlum).forEach(function (key) {
+        if (ds.lightlum.hasOwnProperty(key) && ds.lightlum[key].filtered) {
+            repl = {
+                "didx":devices.length+idxoffset,
+                "device":ds.lightlum[key].device,
+                "devicenick":ds.lightlum[key].devicenick,
+                "version":VERSION
+            };
+            devices.push(obj = cloneFromTemplate(lightLumTemplate,repl));
+            console.log("[ProcessDevDl] Ecco 8 "+JSON.stringify(obj));
         }
     });
     let olddevices = ud["devices"];
@@ -632,7 +663,10 @@ function processMessage(uid,msg,res) {
         if ((dev = res["action"]["device"]) && (ud = DBData[uid]) && (devices = ud["devices"])) {
             let devname = dev.name;
             if (msg=="ActionNotifystate" || msg=="ActionStateon" || msg=="ActionStateon" || msg=="ActionStatechange") {
-                if (dev.type=="DeviceS20") {
+                let subtype;
+                if (dev.type=="DeviceS20" ||
+                    (dev.type=="DevicePrimelan" &&
+                    ((subtype = parseInt(dev.subtype))==0 || subtype==2))) {
                     devices.some(function(d) {
                         if (d.properties.deviceInfo.model=="switch" &&
                             d.properties.customData["device"]==devname) {
@@ -641,6 +675,23 @@ function processMessage(uid,msg,res) {
                                 d.states.on = st;
                                 devMod(uid,[d]);
                                 console.log("[ProcessMessage] 4) Change on device "+getDeviceDbgName(d)+': '+JSON.stringify(d.states));
+                            }
+                            return true;
+                        }
+                        return false;
+                    });
+                }
+                else if (dev.type=="DevicePrimelan" && subtype==1) {
+                    devices.some(function(d) {
+                        if (d.properties.deviceInfo.model=="lightlum" &&
+                            d.properties.customData["device"]==devname) {
+                            let st = dev.state>0;
+                            bright = dev.state<0?-dev.state:dev.state;
+                            if (st!=d.states.on || d.states.brightness!=bright) {
+                                d.states.on = st;
+                                d.states.brightness = bright;
+                                devMod(uid,[d]);
+                                console.log("[ProcessMessage] 5) Change on device "+getDeviceDbgName(d)+': '+JSON.stringify(d.states));
                             }
                             return true;
                         }
@@ -848,6 +899,12 @@ function processEmitRequest(uid,type,device,remote,key) {
     if ((ud = DBData[uid]) && (cli = ud['client'])) {
         if (type=="k3" && key=="switchon")
             cli.writecmnd('stateon '+device);
+        else if (type=="k4") {
+            let ns = /lum([0-9]+)/.exec(key);
+            if (ns) {
+                cli.writecmnd('statechange '+device+' '+ns[1]);
+            }
+        }
         else if (type=="k3" && key=="switchoff")
             cli.writecmnd('stateoff '+device);
         else if (type=="k2")
@@ -930,7 +987,10 @@ function createTestDataBundle(obj,user) {
             if (h.hasOwnProperty(key)) {
                 var dev = h[key];
                 var devname = key;
+                let subtype;
                 let devnick = getTranslation(devname,configuredLocale);
+                if (devnick==devname && dev.nick)
+                    devnick = dev.nick;
                 let add = {
                     "type":"d",
                     "remote":"",
@@ -1033,7 +1093,9 @@ function createTestDataBundle(obj,user) {
                         }
                     }
                 }
-                else if (dev.type=="DeviceS20") {
+                else if (dev.type=="DeviceS20" ||
+                    (dev.type=="DevicePrimelan" &&
+                    ((subtype = parseInt(dev.subtype))==0 || subtype==2))) {
                     add.type+="s"+dev.type.substring(6);
                     let filt = filters.indexOf(devname+':onoff')>=0;
                     add.items = [{
@@ -1074,6 +1136,39 @@ function createTestDataBundle(obj,user) {
                         "raw":""
                     }];
                 }
+                else if (dev.type=="DevicePrimelan" && subtype==1) {
+                    add.type+="l"+dev.type.substring(6);
+                    let filt = filters.indexOf(devname+':setlum')>=0;
+                    let myit = [];
+                    for (let i = 0; i<=20; i++) {
+                        myit.push(
+                            {
+                                "type":"k4",
+                                "remote":"lum"+(i*5),
+                                "remotenick":getTranslation("Lum",configuredLocale)+" "+(i*5),
+                                "idx":myit.length,
+                                "device":devname,
+                                "devicenick":devnick,
+                                "filtered":filt,
+                                "default":false,
+                                "items":null,
+                                "raw":""
+                            }
+                        )
+                    }
+                    add.items = [{
+                        "type":"r4",
+                        "remote":"setlum",
+                        "remotenick":"setlum",
+                        "idx":0,
+                        "device":devname,
+                        "devicenick":devnick,
+                        "filtered":filt,
+                        "default":false,
+                        "items":myit,
+                        "raw":""
+                    }];
+                }
             }
         });
     }
@@ -1085,6 +1180,7 @@ function createDeviceTable(obj,user) {
     var devices = {
         "remote":{},
         "switch":{},
+        "lightlum":{},
         "sh":{}
     };
     var h;
@@ -1097,6 +1193,7 @@ function createDeviceTable(obj,user) {
             if (h.hasOwnProperty(key)) {
                 var dev = h[key];
                 var devname = key;
+                let subtype;
                 console.log("[DeviceTable] Ecco 2 "+devname+" "+dev.type);
                 if (dev.type=="DeviceCT10" || dev.type=="DeviceAllOne" || dev.type=="DeviceRM") {
 
@@ -1193,11 +1290,27 @@ function createDeviceTable(obj,user) {
                         }
                     }
                 }
-                else if (dev.type=="DeviceS20") {
+                else if (dev.type=="DeviceS20" ||
+                    (dev.type=="DevicePrimelan" &&
+                    ((subtype = parseInt(dev.subtype))==0 || subtype==2))) {
+                    let devnick = getTranslation(devname,configuredLocale);
+                    if (devnick==devname && dev.nick)
+                        devnick = dev.nick;
                     devices.switch[devname+':onoff'] = {
-                        "filtered": filters.indexOf(devname)>=0,
-                        "devicenick": getTranslation(devname,configuredLocale)
+                        "filtered": filters.indexOf(devname+':onoff')>=0,
+                        "device":devname,
+                        "devicenick": devnick
                     };
+                }
+                else if (dev.type=="DevicePrimelan" && subtype==1) {
+                    let devnick = getTranslation(devname,configuredLocale);
+                    if (devnick==devname && dev.nick)
+                        devnick = dev.nick;
+                    devices.lightlum[devname+":setlum"] = {
+                        "filtered": filters.indexOf(devname+':setlum')>=0,
+                        "device":devname,
+                        "devicenick": devnick
+                    }
                 }
             }
         });
@@ -1438,6 +1551,52 @@ var remoteNumTemplate = {
             "remote": "$remote$",
             "device": "$device$",
             "offset": 0
+        }
+    },
+    "states": {
+        "on": false,
+        "online": true,
+        "brightness": 50
+    },
+    "executionStates": [
+      "on",
+      "brightness",
+    ],
+    "reportStates": [
+      "on",
+      "brightness",
+    ],
+    "nameChanged": false,
+    "id": "%didx%",
+    "wait": true
+};
+
+var lightLumTemplate = {
+    "properties": {
+        "type": "action.devices.types.LIGHT",
+        "traits": [
+            "action.devices.traits.OnOff",
+            'action.devices.traits.Brightness'
+        ],
+        "name": {
+            "defaultNames": [
+                "Smart Light"
+            ],
+            "name": "r$didx$",
+            "nicknames": [
+                "$devicenick$"
+            ]
+        },
+        "willReportState": true,
+        "roomHint": "",
+        "deviceInfo": {
+            "manufacturer": "MFZ",
+            "model": "lightlum",
+            "swVersion": "$version$",
+            "hwVersion": "1.1"
+        },
+        "customData": {
+            "device": "$device$",
         }
     },
     "states": {

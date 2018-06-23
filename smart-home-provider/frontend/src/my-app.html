@@ -378,7 +378,7 @@ limitations under the License.
 
   <script>
     const SMART_HOME_PROVIDER_CLOUD_ENDPOINT = '/smart-home-api';
-    let nextDeviceId = 0;
+    let nextDeviceId = 1000000;
     /*
      * @return { number } Properties of this class
      */
@@ -662,7 +662,7 @@ limitations under the License.
                   `${this.devices[id].properties.type}`);
                 break;
             }
-            nextDeviceId = parseInt(id) + 1;
+            //MFZ nextDeviceId = parseInt(id) + 1;
           }
         }
       }

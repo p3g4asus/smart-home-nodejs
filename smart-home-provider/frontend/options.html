@@ -1206,7 +1206,10 @@ HTMLImports.whenReady(() => {
 					str = "Device "+devn+" emitting key(s) "+JSON.stringify(a.irname);
 				}
 				else if (cl.startsWith("ActionState")) {
-					str = "Device "+devn+" switching "+(a.state?"on":"off");
+					if (a.newstate==1 || a.newstate==0)
+						str = "Device "+devn+" switching "+(a.newstate?"on":"off");
+					else
+						str = "Device "+devn+" setting state to "+a.newstate;
 				}
 				else if (cl=="ActionPing")
 					str = '';
@@ -1546,7 +1549,7 @@ HTMLImports.whenReady(() => {
 		}
 
 		getRenameRemoteInputDisabled(idx,type) {
-			return type.length==0 || type.charAt(0)=="d" || type=="r2" || type=="r3" || this.disabled;
+			return type.length==0 || type.charAt(0)=="d" || type=="r2" || type=="r3" || type=="r4" || this.disabled;
 		}
 
 		getDeviceNickInvalid(v,type) {
@@ -1566,7 +1569,7 @@ HTMLImports.whenReady(() => {
 		}
 
 		getRenameF1Label(tp) {
-			if (tp.startsWith("d") || tp.startsWith("r") || tp=="k3")
+			if (tp.startsWith("d") || tp.startsWith("r") || tp=="k3" || tp=="k4")
 				return "Device Name";
 			else
 				return "Remote Name";
@@ -1575,7 +1578,7 @@ HTMLImports.whenReady(() => {
 		getRenameF2Label(tp) {
 			if (tp.startsWith("d") || tp.startsWith("r"))
 				return "Remote Name";
-			else if (tp=="k3")
+			else if (tp=="k3" || tp=="k4")
 				return "Action Name";
 			else
 				return "Key Name";
@@ -1719,7 +1722,7 @@ HTMLImports.whenReady(() => {
 		}
 
 		getEmitKeyButtonDisabled(item,type,connected) {
-			return !connected || (type!="k3" && type!="k1" && type!="k2");
+			return !connected || (type!="k3" && type!="k4" && type!="k1" && type!="k2");
 		}
 
 		setLearnKeyRemote(event) {
@@ -1847,6 +1850,8 @@ HTMLImports.whenReady(() => {
 		getDeviceIcon(item,tp) {
 			if (tp.startsWith("ds"))
 				return "device:usb";
+			else if (tp.startsWith("dl"))
+				return "device:brightness-medium";
 			else if (tp.startsWith("dr"))
 				return "icons:settings-remote";
 		}
@@ -1859,12 +1864,13 @@ HTMLImports.whenReady(() => {
 			that.set('remotesList.'+el.idx+'.filtered', v);
 			that.actions.filtered[remsel.device+':'+remsel.remote] = v;
 			that.remotesList[el.idx].items.forEach(function(key) {
+				console.log("set "+JSON.stringify(key)+" selected "+v);
 				if (that.keysList==that.remotesList[el.idx].items)
 					that.set('keysList.'+key.idx+'.filtered', v);
 				else
 					key.filtered = v;
 			});
-			if (remsel.type!="r3") {
+			if (remsel.type!="r3" && remsel.type!="r4") {
 				let shofdevice = that.remotesList[that.remotesList.length-1].items;
 				shofdevice.forEach(function(sh,idx) {
 					sh.filtered = true;

@@ -921,14 +921,14 @@ function cloudInit() {
         return prom;
     }
 
-    var lastRequestSync = 0;
+    var lastRequestSync = {};
 
     app.requestSync = function(uid) {
         // REQUEST_SYNC
         var ts = Date.now();
-        if (lastRequestSync && ts - lastRequestSync < 7000)
+        if (lastRequestSync[uid] && ts - lastRequestSync[uid] < 7000)
             return;
-        lastRequestSync = ts;
+        lastRequestSync[uid] = ts;
         const apiKey = config.smartHomeProviderApiKey;
         const options = {
             method: 'POST',
@@ -958,21 +958,29 @@ function cloudInit() {
         let authToken = datastore.Auth.userobj[uid].tokens['access'].s;
 
         let device = request.body;
-        app.reportState(authToken, uid, device);
-
-        // otherwise, all good!
-        response.status(200)
-            .set({
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-            })
-            .send({
-                status: 'OK'
-            });
+        app.reportState(authToken, uid, device).then(function(res) {
+            console.info('[ReportState OK] Response', res);
+            // otherwise, all good!
+            response.status(200)
+                .set({
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+                })
+                .send({
+                    status: 'OK'
+                });
+        }).catch(function(err) {
+            console.log("[ReportState Err] "+err);
+        });
     });
 
 
     app.reportState = (authToken, uid, device) => {
+        let resolve,reject;
+        let prom =  new Promise((resolve0, reject0) => {
+            resolve = resolve0;
+            reject = reject0;
+        });
         const https = require('https');
         const {
             google
@@ -986,8 +994,8 @@ function cloudInit() {
 
         const reportedStates = {};
         if (!device.reportStates) {
-            console.warn(`Device ${device.id} has no states to report`);
-            return;
+            reject(`Device ${device.id} has no states to report`);
+            return prom;
         }
         device.reportStates.map((key) => {
             reportedStates[key] = device.states[key];
@@ -1008,8 +1016,8 @@ function cloudInit() {
 
         jwtClient.authorize((err, tokens) => {
             if (err) {
-                console.error(err);
-                return;
+                reject(err);
+                return prom;
             }
             const options = {
                 hostname: 'homegraph.googleapis.com',
@@ -1020,26 +1028,24 @@ function cloudInit() {
                     Authorization: ` Bearer ${tokens.access_token}`,
                 },
             };
-            return new Promise((resolve, reject) => {
-                let responseData = '';
-                const req = https.request(options, (res) => {
-                    res.on('data', (d) => {
-                        responseData += d.toString();
-                    });
-                    res.on('end', () => {
-                        resolve(responseData);
-                    });
+            let responseData = '';
+            const req = https.request(options, (res) => {
+                res.on('data', (d) => {
+                    responseData += d.toString();
                 });
-                req.on('error', (e) => {
-                    reject(e);
+                res.on('end', () => {
+                    resolve(responseData);
                 });
-                // Write data to request body
-                req.write(JSON.stringify(postData));
-                req.end();
-            }).then((data) => {
-                console.info('Report State response', data);
             });
+            req.on('error', (e) => {
+                reject(e);
+            });
+            // Write data to request body
+            req.write(JSON.stringify(postData));
+            req.end();
+            return prom;
         });
+        return prom;
     };
 
 
