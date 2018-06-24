@@ -1412,11 +1412,11 @@ HTMLImports.whenReady(() => {
 				this.set('learnDialogList.'+(this.learnDialogList.length-2)+'.last' ,true);
 			}
 			this.splice('learnDialogList',el.idx,1);
-			if (this.learnDialogRowInvalid(el))
-				this.setLearnDialogElementsOk(true,false);
 			this.learnDialogList.forEach(function(it,idx) {
 				it.idx = idx;
 			});
+			if (this.learnDialogRowInvalid(el))
+				this.setLearnDialogElementsOk(false,true);			
 		}
 
 		learnDialogGetRemoveButtonDisabled(idx,p0,p1,p2,last) {
