@@ -15,6 +15,7 @@ var MFZClient = (function(){
         that.currentOut = "";
         that.lastMsgTs = 0;
         that.msgidx = parseInt(id)*100000+1;
+        that.expectedresp = "";
         that.devicedl = false;
         that.errorHandler = function(err) {
             console.log("[TCPC" + that.id + "] "+err);
@@ -146,8 +147,8 @@ var MFZClient = (function(){
                         console.log("[TCPC" + that.id + "] strmsg "+strmsg+" msg "+msg+" prom "+
                             (that.currentPromise?that.currentPromise.msg:"undefined")+
                             " rid = "+res.action.randomid+"/"+that.msgidx);
-                        if (res.action.randomid==that.msgidx && strmsg=="ActionDevicedl") {
-                            ++that.msgidx;
+                        if (res.action.randomid==that.msgidx && that.expectedresp==msg && strmsg=="ActionDevicedl") {
+                            that.expectedresp = '';
                             if (that.onDevices) {
                                 that.onMsgReceived(120);
                                 that.devicedl = true;
@@ -210,6 +211,8 @@ var MFZClient = (function(){
                 that.connect(cmnd);
             else {
                 let msg;
+                let idxcomma = cmnd.indexOf(' ')
+                that.expectedresp = idxcomma>0?cmnd.substring(0,idxcomma):cmnd;
                 that.msgidx++;
                 that.tcpclient.write(msg = '@'+that.msgidx+' '+cmnd+'\r\n');
                 console.log("[TCPC" + that.id + "] writing "+msg);
