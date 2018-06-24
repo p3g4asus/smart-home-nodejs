@@ -269,7 +269,7 @@ function registerAgent(app) {
     }
     let deviceList = [];
     Object.keys(devices).forEach(function(key) {
-      if (devices.hasOwnProperty(key) && devices[key]) {
+      if (devices.hasOwnProperty(key) && devices[key] && /^[0-9]+$/.exec(key)) {
         console.log('Getting device information for id \'' + key + '\'');
         let device = devices[key];
         device.id = key;
