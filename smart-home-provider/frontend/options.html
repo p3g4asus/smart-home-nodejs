@@ -1688,7 +1688,7 @@ HTMLImports.whenReady(() => {
 				let key = this.remotesList[this.$.remoteslb.selected].device+':'+
 					this.itemRename.device+':'+
 					this.itemRename.remote;
-				key+=':'+':'+this.itemRename.device+':'+this.itemRename.remote;
+				key+=':'+this.itemRename.device+':'+this.itemRename.remote;
 				this.actions.raw[key] = this.itemRename.raw;
 				console.log("Action inserted: "+key);
 				this.createToast('plain','Edit action will be executed on submit',5);
