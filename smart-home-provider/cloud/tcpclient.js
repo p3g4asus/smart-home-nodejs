@@ -147,6 +147,7 @@ var MFZClient = (function(){
                             (that.currentPromise?that.currentPromise.msg:"undefined")+
                             " rid = "+res.action.randomid+"/"+that.msgidx);
                         if (res.action.randomid==that.msgidx && strmsg=="ActionDevicedl") {
+                            ++that.msgidx;
                             if (that.onDevices) {
                                 that.onMsgReceived(120);
                                 that.devicedl = true;
