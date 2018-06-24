@@ -1969,8 +1969,11 @@ HTMLImports.whenReady(() => {
 						lstRename.forEach(function(renItem) {
 							performRename(orig.remote,this.itemRename.remotenick,renItem.lst,renItem.lstname);
 						},this);
-						this.actions.renames[orig.remote] = this.itemRename.remotenick;
-						this.createToast('plain','Translation add of "'+orig.remote+'" to "'+this.itemRename.remotenick+'" will be done on submit',5);
+						let k = orig.remote;
+						if (k.startsWith('@'))
+							k = k.substr(1);
+						this.actions.renames[k] = this.itemRename.remotenick;
+						this.createToast('plain','Translation add of "'+k+'" to "'+this.itemRename.remotenick+'" will be done on submit',5);
 					}
 				}
 			}
