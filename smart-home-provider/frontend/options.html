@@ -1618,9 +1618,9 @@ HTMLImports.whenReady(() => {
 					else
 						return false;
 				}.bind(this));
-				let remelem = that.remotesList[el.idx];
+				let remelem = this.remotesList[el.idx];
 				this.set('remotesList.'+el.idx+'.default', true);
-				that.actions.default = remelem.device+':'+remelem.remote;
+				this.actions.default = remelem.device+':'+remelem.remote;
 			}
 		}
 
