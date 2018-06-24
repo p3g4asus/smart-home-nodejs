@@ -89,9 +89,11 @@ function editTranslation(uid,lang,renames) {
         rens += ',"'+key+'","'+renames[key]+'"';
         len++;
     });
-    let ud,conn = null;
-    if (ud = DBData[uid])
+    let ud,conn = null,cli = null;
+    if (ud = DBData[uid]) {
         conn = ud['conn'];
+        cli = ud['client'];
+    }
     return new Promise(function(resolve,reject) {
         if (!len) {
             if (conn) {
@@ -117,6 +119,8 @@ function editTranslation(uid,lang,renames) {
                         conn.write('data: ' + JSON.stringify({'msg':'conmsg','pld':{'msg':'Translation add OK: '+rens+' ['+len+']','retval':1}}) + '\n\n');
                     }
                     resolve();
+                    if (cli)
+                        cli.writecmnd('devicedl');
                 }
             }
             eval('redis_client.hmset('+rens+',funcallback);');

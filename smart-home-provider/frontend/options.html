@@ -1294,7 +1294,7 @@ HTMLImports.whenReady(() => {
 			if (p1!='$pause') {
 				let out = [];
 				this.learnDialogRemotesList.some(function(rem) {
-					if (rem.remote==p1) {
+					if (rem.remote==p1 && rem.items) {
 						out = rem.items.slice(0);
 						return true;
 					}
@@ -1412,6 +1412,8 @@ HTMLImports.whenReady(() => {
 				this.set('learnDialogList.'+(this.learnDialogList.length-2)+'.last' ,true);
 			}
 			this.splice('learnDialogList',el.idx,1);
+			if (this.learnDialogRowInvalid(el))
+				this.setLearnDialogElementsOk(true,false);
 			this.learnDialogList.forEach(function(it,idx) {
 				it.idx = idx;
 			});
@@ -1599,12 +1601,11 @@ HTMLImports.whenReady(() => {
 		setDefaultRemote(event) {
 			let el = event.model.item;
 			if (!el.default) {
-				let that = this;
-				that.devicesList.some(function(dev) {
+				this.devicesList.some(function(dev) {
 					if (dev.items) {
 						return dev.items.some(function(rem) {
 							if (rem.default) {
-								if (dev.items!=that.remotesList)
+								if (dev.items!=this.remotesList)
 									rem.default = false;
 								else
 									this.set('remotesList.'+rem.idx+'.default', false);
@@ -1616,7 +1617,7 @@ HTMLImports.whenReady(() => {
 					}
 					else
 						return false;
-				});
+				}.bind(this));
 				let remelem = that.remotesList[el.idx];
 				this.set('remotesList.'+el.idx+'.default', true);
 				that.actions.default = remelem.device+':'+remelem.remote;

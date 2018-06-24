@@ -212,6 +212,8 @@ var MFZClient = (function(){
             else {
                 let msg;
                 let idxcomma = cmnd.indexOf(' ')
+                if (cmnd=="devicedl")
+                    that.devicedl = false;
                 that.expectedresp = idxcomma>0?cmnd.substring(0,idxcomma):cmnd;
                 that.msgidx++;
                 that.tcpclient.write(msg = '@'+that.msgidx+' '+cmnd+'\r\n');
