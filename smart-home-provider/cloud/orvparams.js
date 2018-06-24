@@ -222,7 +222,10 @@ function replaceRemote(devices,newDevice,newRemote,configuredLocale) {
     listSync = {};
     for (var i = 0; i<devices.length; i++) {
         let modd = false;
-        if (devices[i].properties.deviceInfo.model=="remotenum") {
+        let mdl = devices[i].properties.deviceInfo.model;
+        if (mdl=="switch" || mdl=="lightlum")
+            continue;
+        if (mdl=="remotenum") {
             if (devices[i].properties.name.nicknames.indexOf(newRemoteNick)>=0) {
                 if (devices[i].states.hasOwnProperty("on")) {
                     if (!devices[i].states.on) {
