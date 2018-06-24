@@ -445,9 +445,17 @@ function registerAgent(app) {
       for (let j = 0; j < curCommand.execution.length; j++) {
         let curExec = curCommand.execution[j];
         let devices = curCommand.devices;
+        let dev,mdl,runAction;
         for (let k = 0; k < devices.length; k++) {
-          let executionResponse = execDevice(data.uid, curExec, devices[k]);
-          console.log('Device exec response',
+          dev = devices[k];
+          if (dev.customData && ((mdl = dev.customData.model)=="remotekey" ||
+              mdl=="remotenum" || mdl=="remotevol") && devices.length>1) {
+            runAction = false;
+          }
+          else
+            runAction = true;
+          let executionResponse = execDevice(data.uid, curExec, dev, runAction);
+          console.log('Device exec response '+(runAction?'[TRUE]':'[FAKE]'),
               JSON.stringify(executionResponse));
           const execState = {};
           if (executionResponse.executionStates) {
@@ -458,7 +466,7 @@ function registerAgent(app) {
             console.warn('No execution states were found for this device');
           }
           respCommands.push({
-            ids: [devices[k].id],
+            ids: [dev.id],
             status: executionResponse.status,
             errorCode: executionResponse.errorCode
                 ? executionResponse.errorCode : undefined,
@@ -508,7 +516,9 @@ function registerAgent(app) {
    *   }
    * }
    */
-  function execDevice(uid, command, device) {
+  function execDevice(uid, command, device, runAction) {
+    if (typeof runAction=="undefined")
+      runAction = true;
     let curDevice = {
       id: device.id,
       states: {},
@@ -539,7 +549,8 @@ function registerAgent(app) {
 
     deviceCommand.state[curDevice.id] = Object.assign({},execDevice[curDevice.id].states);
     deviceCommand.state[curDevice.id]['cmd'] = command['command'];
-    app.changeState(deviceCommand);
+    if (runAction)
+      app.changeState(deviceCommand);
 
     execDevice = execDevice[curDevice.id];
 

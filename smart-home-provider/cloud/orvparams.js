@@ -1477,6 +1477,7 @@ var remoteVolumeTemplate = {
             "hwVersion": "1.1"
         },
         "customData": {
+            "model": "remotevol",
             "remote": "$remote$",
             "device": "$device$"
         },
@@ -1524,6 +1525,7 @@ var remoteBigNumTemplate = {
             "hwVersion": "1.1"
         },
         "customData": {
+            "model": "remotenum",
             "remote": "$remote$",
             "device": "$device$",
             "offset": "$offset$"
@@ -1572,6 +1574,7 @@ var remoteNumTemplate = {
             "hwVersion": "1.1"
         },
         "customData": {
+            "model": "remotenum",
             "remote": "$remote$",
             "device": "$device$",
             "offset": 0
@@ -1620,6 +1623,7 @@ var lightLumTemplate = {
             "hwVersion": "1.1"
         },
         "customData": {
+            "model": "lightlum",
             "device": "$device$",
         }
     },
@@ -1706,6 +1710,7 @@ var remoteKeyTemplate = {
             "hwVersion": "1.1"
         },
         "customData": {
+            "model": "remotekey",
             "key": "$key$",
             "remote": "$remote$",
             "device": "$device$"
@@ -1750,6 +1755,7 @@ var remoteSwitchTemplate = {
             "hwVersion": "1.1"
         },
         "customData": {
+            "model": "switch",
             "device": "$device$"
         }
     },
