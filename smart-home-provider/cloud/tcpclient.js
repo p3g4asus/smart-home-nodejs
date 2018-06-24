@@ -144,7 +144,8 @@ var MFZClient = (function(){
                             msg = strmsg.charAt(6).toLowerCase() + strmsg.slice(7);
                         }
                         console.log("[TCPC" + that.id + "] strmsg "+strmsg+" msg "+msg+" prom "+
-                            (that.currentPromise?that.currentPromise.msg:"undefined"));
+                            (that.currentPromise?that.currentPromise.msg:"undefined")+
+                            " rid = "+res.action.randomid+"/"+that.msgidx);
                         if (res.action.randomid==that.msgidx && strmsg=="ActionDevicedl") {
                             if (that.onDevices) {
                                 that.onMsgReceived(120);

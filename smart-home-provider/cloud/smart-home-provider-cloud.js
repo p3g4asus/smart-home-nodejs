@@ -131,8 +131,10 @@ function cloudInit() {
         /*if (device.hasOwnProperty("wait"))
           console.log("[RegDevice] device "+device.id+" wait "+device.wait);*/
 
-        if (!device.hasOwnProperty("wait") || !device.wait)
+        if (!device.hasOwnProperty("wait") || !device.wait) {
+            console.log(datastore.getUid(uid));
             app.requestSync(uid);
+        }
 
         // otherwise, all good!
         response.status(200)
@@ -605,7 +607,7 @@ function cloudInit() {
     if (config.getInside("WELL_KNOWN")=="YES") {
         app.use('/.well-known', express.static(
                 ((starttype=="GREENLOCK" || starttype=="GREENLOCKLOCAL")?
-                    "./":"../htdocs/")+"well-known"));
+                    "./":"../htdocs/")+".well-known"));
     }
     app.use('/frontend', express.static('./frontend'));
     app.use('/frontend/', express.static('./frontend'));
@@ -937,10 +939,17 @@ function cloudInit() {
 
     app.requestSync = function(uid) {
         // REQUEST_SYNC
-        var ts = Date.now();
+        let ts = Date.now();
+        let diff;
         if (lastRequestSync[uid] && ts - lastRequestSync[uid] < 7000)
             return;
-        lastRequestSync[uid] = ts;
+        else if (lastRequestSync['abs'] && (diff = ts - lastRequestSync['abs']) < 5000) {
+            setTimeout(function() {
+                app.requestSync(uid);
+            },diff+300);
+            return;
+        }
+        lastRequestSync['abs'] = lastRequestSync[uid] = ts;
         let k1 = datastore.Auth.clientsuser[datastore.Auth.userobj[uid].clientname];
         const apiKey = datastore.Auth.clients[k1].apikey;
         const options = {
