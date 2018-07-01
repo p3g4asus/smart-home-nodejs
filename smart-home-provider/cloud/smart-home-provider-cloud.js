@@ -1097,6 +1097,9 @@ function cloudInit() {
             agreeTos: true
 
                 ,
+            version: 'draft-11',
+            debug:true,
+            configDir: require('path').join(require('os').homedir(), 'acme', 'etc'),
             approveDomains: ['mfzhome.ddns.net']
 
                 ,

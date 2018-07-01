@@ -290,24 +290,16 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                 }
                 else if (dev.properties.deviceInfo.model=="lightlum") {
                     let valtosave = -101;
-                    if (statesObj.hasOwnProperty('on') &&
-                        (statesObj['cmd']=='action.devices.commands.OnOff' || !statesObj.hasOwnProperty('brightness'))) {
-                        if (statesObj.on && statesObj.hasOwnProperty('brightness'))
-                            valtosave = statesObj.brightness;
-                        else if (statesObj.on && !statesObj.hasOwnProperty('brightness'))
-                            valtosave = 50;
-                        else if (!statesObj.on && statesObj.hasOwnProperty('brightness'))
-                            valtosave = -statesObj.brightness;
-                        else
-                            valtosave = -50;
-                    }
-                    else if (statesObj.hasOwnProperty('brightness'))
+                    if (statesObj.hasOwnProperty('on') && statesObj['cmd']=='action.devices.commands.OnOff')
+                        valtosave = statesObj.on?1000:0;
+                    else if (statesObj.hasOwnProperty("brightness") && statesObj['cmd']=='action.devices.commands.BrightnessAbsolute')
                         valtosave = statesObj.brightness;
 
-                    if (valtosave>=-100) {
+                    if (valtosave>=0) {
                         cli.writecmnd("statechange "+dev.properties.customData["device"]+" "+valtosave);
                         dev.states.on = valtosave>0;
-                        dev.states.brightness = valtosave;
+                        if (valtosave>0 && valtosave<=100)
+                            dev.states.brightness = valtosave;
                     }
                 }
                 else if (dev.properties.deviceInfo.model=="remotevol") {
@@ -694,7 +686,7 @@ function processMessage(uid,msg,res) {
                     devices.some(function(d) {
                         if (d.properties.deviceInfo.model=="switch" &&
                             d.properties.customData["device"]==devname) {
-                            let st = dev.state==1;
+                            let st = dev.state=="1";
                             if (st!=d.states.on) {
                                 d.states.on = st;
                                 devMod(uid,[d]);
@@ -705,12 +697,13 @@ function processMessage(uid,msg,res) {
                         return false;
                     });
                 }
-                else if (dev.type=="DevicePrimelan" && subtype==1) {
+                else if (dev.type=="DeviceVirtual" || (dev.type=="DevicePrimelan" && subtype==1)) {
                     devices.some(function(d) {
                         if (d.properties.deviceInfo.model=="lightlum" &&
                             d.properties.customData["device"]==devname) {
-                            let st = dev.state>0;
-                            bright = dev.state<0?-dev.state:dev.state;
+                            let ist = parseInt(dev.state);
+                            let st = ist>0;
+                            bright = !ist?50:ist;
                             if (st!=d.states.on || d.states.brightness!=bright) {
                                 d.states.on = st;
                                 d.states.brightness = bright;
@@ -1160,7 +1153,7 @@ function createTestDataBundle(obj,user) {
                         "raw":""
                     }];
                 }
-                else if (dev.type=="DevicePrimelan" && subtype==1) {
+                else if (dev.type=="DeviceVirtual" || (dev.type=="DevicePrimelan" && subtype==1)) {
                     add.type+="l"+dev.type.substring(6);
                     let filt = filters.indexOf(devname+':setlum')>=0;
                     let myit = [];
@@ -1326,7 +1319,7 @@ function createDeviceTable(obj,user) {
                         "devicenick": devnick
                     };
                 }
-                else if (dev.type=="DevicePrimelan" && subtype==1) {
+                else if (dev.type=="DeviceVirtual" || (dev.type=="DevicePrimelan" && subtype==1)) {
                     let devnick = getTranslation(devname,configuredLocale);
                     if (devnick==devname && dev.nick)
                         devnick = dev.nick;
