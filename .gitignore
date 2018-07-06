@@ -3,3 +3,4 @@
 gactions
 **/creds.data
 smart-home-provider/cloud/jwt-key.*.json
+htdocs/*
