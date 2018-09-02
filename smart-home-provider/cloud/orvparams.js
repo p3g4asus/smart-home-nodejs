@@ -316,8 +316,7 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                         let volk = getRemoteVolumeKey(statesObj.brightness,remoteObj = remotes[currentremote]);
                         if (!volk) {
                             Object.keys(remotes).some(function (remn) {
-                                if (remotes.hasOwnProperty(remn)) {
-                                    remoteObj = remotes[remn];
+                                if (remotes.hasOwnProperty(remn) && (remoteObj = remotes[remn]).filtered) {
                                     volk = getRemoteVolumeKey(statesObj.brightness,remoteObj);
                                     if (volk) {
                                         cli.emitir(remoteObj.device,remoteObj.remote+":"+volk);
