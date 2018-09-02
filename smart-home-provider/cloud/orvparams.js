@@ -377,8 +377,7 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                         let remoteObj = remotes[currentremote];
                         if (remoteObj.keys.indexOf(key)<0) {
                             Object.keys(remotes).some(function (remn) {
-                                if (remotes.hasOwnProperty(remn)) {
-                                    remoteObj = remotes[remn];
+                                if (remotes.hasOwnProperty(remn) && (remoteObj = remotes[remn]).filtered) {
                                     if (remoteObj.keys.indexOf(key)>=0) {
                                         currentremote = remn;
                                         defRemote = remoteObj.remote;
