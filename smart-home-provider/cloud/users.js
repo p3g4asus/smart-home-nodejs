@@ -69,6 +69,13 @@ var User = (function(){
                         });
                 });
             };
+            let delFilters = function(nextid) {
+                return new Promise(function(resolve1,reject1) {
+                    redis_client.del("user:filters:"+nextid,function(err0,resDel) {
+                        resolve1(that);
+                    });
+                });
+            }
             let setAddFilters = function(nextid,n) {
                 if (that.options.filters.length==0)
                     return Promise.resolve(that);
@@ -85,6 +92,9 @@ var User = (function(){
             };
             let pstart = hmSetOptions(that.uid).then(function(us) {
                 return manageAutoLogin(that.uid);
+            });
+            pstart = pstart.then(function(us) {
+                return delFilters(that.uid);
             });
             for (let i  = 0; i<that.options.filters.length; i++) {
                 pstart = pstart.then(function(us) {
