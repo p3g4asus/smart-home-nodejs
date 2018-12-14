@@ -62,7 +62,7 @@ Auth.checkAuth = function(request,response,redir,checkRegistration) {
     }
     else
         return uid;
-}
+};
 
 const SmartHomeModel = {};
 
@@ -77,14 +77,14 @@ SmartHomeModel.getAccessToken = function(code) {
             reject('uid and client_id do not match');
         else {
             authstore.loadUserTokens(authCode.uid,["access","refresh"]).then(function(tokens){
-                let acctok;
-                if (!(acctok = tokens["access"]) || !tokens["refresh"])
+                let acctok,refrtok;
+                if (!(acctok = tokens.access) || !(refrtok = tokens.refresh))
                     reject("Error generating tokens: "+JSON.stringify(tokens));
                 else {
                     let returnToken = {
                         token_type: "bearer",
                         access_token: acctok.s,
-                        refresh_token: tokens['refresh'].s,
+                        refresh_token: refrtok.s,
                         expires_in: Math.floor((acctok.expire-Date.now())/1000)
                     };
                     console.log('return getAccessToken = ', returnToken);
@@ -202,7 +202,7 @@ Auth.registerAuth = function(app) {
         });
         let dec = function(a, b) {
             return a && a.length ? a : b;
-        }
+        };
         us.save().then(function(user) {
             return res.redirect(util.format('%s?redirect_uri=%s&state=%s&response_type=code',
                 '/login', encodeURIComponent('/options'), req.body.state));
@@ -231,7 +231,7 @@ Auth.registerAuth = function(app) {
         if (!pw || !req.body.username) {
             let dec = function(a, b) {
                 return a && a.length && a!="undefined"? a : b;
-            }
+            };
             let config = require('./config-provider');
             res.redirect(util.format('%s?redirect_uri=%s&state=%s&response_type=code',
                 '/login',
@@ -301,8 +301,16 @@ Auth.registerAuth = function(app) {
         let grant_type = req.query.grant_type ? req.query.grant_type : req.body.grant_type;
 
         if (!client_id || !client_secret) {
-            console.error('missing required parameter');
-            return res.status(400).send('missing required parameter');
+            let hd;
+            if ((hd = req.headers.authorization) && hd.indexOf("Basic ")==0 &&
+                (hd = /([^:]+):([^:]+)/.exec(Buffer.from(hd.substr(6), 'base64').toString('ascii')))) {
+                client_id = hd[1];
+                client_secret = hd[2];
+            }
+            else {
+                console.error('missing required parameter');
+                return res.status(400).send('missing required parameter');
+            }
         }
 
         // if ('token' != req.query.response_type) {
@@ -435,7 +443,7 @@ function handleRefreshToken(req) {
         else {
             authstore.loadUserTokens(uid,['access']).then(function(toks) {
                 let acctok;
-                if (acctok = toks['access'])
+                if ((acctok = toks.access))
                     resolve({
                         token_type: "bearer",
                         access_token: acctok.s,
