@@ -391,7 +391,7 @@ function handleAuthCode(req) {
             console.error('expired code');
             reject('expired code');
         }
-        else if (authCode.clientId != client_id) {
+        else if (authCode.clientId != client.clientId) {
             console.error('invalid code - wrong client', authCode);
             reject('invalid code - wrong client');
         }
