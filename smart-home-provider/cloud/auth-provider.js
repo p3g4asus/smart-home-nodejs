@@ -97,6 +97,27 @@ SmartHomeModel.getAccessToken = function(code) {
     });
 };
 
+SmartHomeModel.getCredentials = function(req) {
+    let client_id = req.query.client_id ? req.query.client_id : req.body.client_id;
+    let client_secret = req.query.client_secret ? req.query.client_secret : req.body.client_secret;
+
+    if (!client_id || !client_secret) {
+        let hd;
+        if ((hd = req.headers.authorization) && hd.indexOf("Basic ")==0 &&
+            (hd = /([^:]+):([^:]+)/.exec(Buffer.from(hd.substr(6), 'base64').toString('ascii')))) {
+            client_id = hd[1];
+            client_secret = hd[2];
+        }
+        else {
+            console.error('missing required parameter');
+            return null;
+        }
+    }
+    let client = SmartHomeModel.getClient(client_id, client_secret);
+    console.log('client', client);
+    return client;
+};
+
 SmartHomeModel.getClient = function(clientId, clientSecret) {
     console.log('getClient %s, %s', clientId, clientSecret);
     let client = authstore.clients[clientId];
@@ -296,30 +317,10 @@ Auth.registerAuth = function(app) {
     app.all('/token', function(req, res) {
         console.log('/token query', req.query);
         console.log('/token body', req.body);
-        let client_id = req.query.client_id ? req.query.client_id : req.body.client_id;
-        let client_secret = req.query.client_secret ? req.query.client_secret : req.body.client_secret;
         let grant_type = req.query.grant_type ? req.query.grant_type : req.body.grant_type;
 
-        if (!client_id || !client_secret) {
-            let hd;
-            if ((hd = req.headers.authorization) && hd.indexOf("Basic ")==0 &&
-                (hd = /([^:]+):([^:]+)/.exec(Buffer.from(hd.substr(6), 'base64').toString('ascii')))) {
-                client_id = hd[1];
-                client_secret = hd[2];
-            }
-            else {
-                console.error('missing required parameter');
-                return res.status(400).send('missing required parameter');
-            }
-        }
+        let client = SmartHomeModel.getCredentials(req);
 
-        // if ('token' != req.query.response_type) {
-        //     console.error('response_type ' + req.query.response_type + ' is not supported');
-        //     return res.status(400).send('response_type ' + req.query.response_type + ' is not supported');
-        // }
-
-        let client = SmartHomeModel.getClient(client_id, client_secret);
-        console.log('client', client);
         if (!client) {
             console.error('incorrect client data');
             return res.status(400).send('incorrect client data');
@@ -369,11 +370,9 @@ Auth.registerAuth = function(app) {
 function handleAuthCode(req) {
     return new Promise(function(resolve,reject) {
         console.log('handleAuthCode', req.query);
-        let client_id = req.query.client_id ? req.query.client_id : req.body.client_id;
-        let client_secret = req.query.client_secret ? req.query.client_secret : req.body.client_secret;
         let code = req.query.code ? req.query.code : req.body.code;
 
-        let client = SmartHomeModel.getClient(client_id, client_secret);
+        let client = SmartHomeModel.getCredentials(req);
         let authCode;
 
         if (!code) {
@@ -381,7 +380,7 @@ function handleAuthCode(req) {
             reject('missing required parameter');
         }
         else if (!client) {
-            console.error('invalid client id or secret %s, %s', client_id, client_secret);
+            console.error('invalid client data');
             reject('invalid client id or secret');
         }
         else if (!(authCode = authstore.authcodes[code])) {
@@ -417,28 +416,26 @@ function handleAuthCode(req) {
  */
 function handleRefreshToken(req) {
     return new Promise(function(resolve,reject) {
-        let client_id = req.query.client_id ? req.query.client_id : req.body.client_id;
-        let client_secret = req.query.client_secret ? req.query.client_secret : req.body.client_secret;
         let refresh_token = req.query.refresh_token ? req.query.refresh_token : req.body.refresh_token;
 
-        let client = SmartHomeModel.getClient(client_id, client_secret),tok,uid;
+        let client = SmartHomeModel.getCredentials(req),tok,uid;
         if (!client)
-            reject('invalid client id or secret '+client_id+' '+client_secret);
+            reject('invalid client id or secret');
         else if (!refresh_token)
             reject('missing required parameter');
         else if (!(tok = authstore.tokens[refresh_token]))
             reject('token not present in DB');
         else if (!(tok = tok.token))
             reject('token is not a valid token object');
-        else if (tok.client!=client_id)
-            reject('token is not for clientid '+client_id+' but for '+tok.client);
+        else if (tok.client!=client.clientId)
+            reject('token is not for clientid '+client.clientId+' but for '+tok.client);
         else if (tok.type!="refresh")
             reject('token is not a refresh token');
         else if (tok.isExpired())
             reject('token is expired');
         else if (!(uid = tok.uid))
             reject('invalid user associated to the token');
-        else if (!authstore.userobj[uid] || client_id!=authstore.clientsuser[authstore.userobj[uid].clientname])
+        else if (!authstore.userobj[uid] || client.clientId!=authstore.clientsuser[authstore.userobj[uid].clientname])
             reject('user cannot be used with this client');
         else {
             authstore.loadUserTokens(uid,['access']).then(function(toks) {
