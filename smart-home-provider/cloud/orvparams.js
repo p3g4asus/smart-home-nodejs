@@ -639,19 +639,23 @@ function processDeviceDl(uid,objdata){
         let removeDev = function(idx) {
             if (exports.onRemove && olddevices && idx<olddevices.length) {
                 let dev = devices[idx];
-                dev.wait = true;
-                let es = ud.events[dev.id];
-                if (es) {
-                    es.close();
-                    es.onmessage = null;
-                    es.onerror = null;
-                    es.removeAllListeners('change');
+                if (dev) {
+                    dev.wait = true;
+                    let es = ud.events[dev.id];
+                    if (es) {
+                        es.close();
+                        es.onmessage = null;
+                        es.onerror = null;
+                        es.removeAllListeners('change');
+                    }
+                    exports.onRemove(uid,dev).then(function() {
+                        removeDev(idx+1);
+                    },function() {
+                        removeDev(idx+1);
+                    });
                 }
-                exports.onRemove(uid,dev).then(function() {
+                else
                     removeDev(idx+1);
-                },function() {
-                    removeDev(idx+1);
-                });
             }
             else {
                 ud.devices = devices;
