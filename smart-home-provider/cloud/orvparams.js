@@ -505,7 +505,7 @@ function processDeviceDl(uid,objdata){
         var obj,repl = {};
         ud.user.options.defaultremote = ud.currentremote = defaultremote;
         ud.nicks = {};
-        console.log("[ProcessDevDl" + uid + "] Ecco 1 "+defRemoteNick+"/"+defDeviceNick);
+        //console.log("[ProcessDevDl" + uid + "] Ecco 1 "+defRemoteNick+"/"+defDeviceNick);
         Object.keys(ds.remote).forEach(function (key) {
             let rn;
             if (ds.remote.hasOwnProperty(key) && (rn = ds.remote[key]).filtered) {
@@ -521,9 +521,9 @@ function processDeviceDl(uid,objdata){
                 //console.log("[ProcessDevDl" + uid + "] Ecco 2 "+JSON.stringify(repl));
                 var regnum = rn.numData!=null?
                     new RegExp(rn.numData.pre+"[0-9]+"+rn.numData.post):null;
-                console.log("[ProcessDevDl" + uid + "] Ecco 2 ");
+                //console.log("[ProcessDevDl" + uid + "] Ecco 2 ");
                 obj = cloneFromTemplate(remoteNumTemplate,repl);
-                console.log("[ProcessDevDl" + uid + "] Ecco 3 "+JSON.stringify(obj));
+                //console.log("[ProcessDevDl" + uid + "] Ecco 3 "+JSON.stringify(obj));
                 devices.push(obj);
                 for (var i = 0; i<rn.keys.length; i++) {
                     var kn = rn.keys[i];
@@ -540,7 +540,7 @@ function processDeviceDl(uid,objdata){
                     devices.push(obj = cloneFromTemplate(remoteKeyTemplate,repl));
                     if (mulKeyRegexp.exec(kn))
                         obj.properties.traits.push('action.devices.traits.Brightness');
-                    console.log("[ProcessDevDl" + uid + "] Ecco 4 "+JSON.stringify(obj));
+                    //console.log("[ProcessDevDl" + uid + "] Ecco 4 "+JSON.stringify(obj));
                 }
             }
         });
@@ -556,7 +556,7 @@ function processDeviceDl(uid,objdata){
                 repl.didx = devices.length+idxoffset;
                 repl.name = getTranslation(key,configuredLocale);
                 devices.push(obj = cloneFromTemplate(remoteVolumeTemplate,repl));
-                console.log("[ProcessDevDl" + uid + "] Ecco 5 "+JSON.stringify(obj));
+                //console.log("[ProcessDevDl" + uid + "] Ecco 5 "+JSON.stringify(obj));
             });
 
         }
@@ -570,7 +570,7 @@ function processDeviceDl(uid,objdata){
             repl.didx = devices.length+idxoffset;
             repl.offset = 100+i*100;
             devices.push(obj = cloneFromTemplate(remoteBigNumTemplate,repl));
-            console.log("[ProcessDevDl" + uid + "] Ecco 5.1 "+JSON.stringify(obj));
+            //console.log("[ProcessDevDl" + uid + "] Ecco 5.1 "+JSON.stringify(obj));
         }
         replaceRemote(devices,defDevice,defRemote,ud.user.options.language);
         Object.keys(ds.sh).forEach(function (key) {
@@ -587,7 +587,7 @@ function processDeviceDl(uid,objdata){
                     "version":VERSION
                 };
                 devices.push(obj = cloneFromTemplate(remoteKeyTemplate,repl));
-                console.log("[ProcessDevDl" + uid + "] Ecco 6 "+JSON.stringify(obj));
+                //console.log("[ProcessDevDl" + uid + "] Ecco 6 "+JSON.stringify(obj));
             }
         });
         Object.keys(ds.switch).forEach(function (key) {
@@ -599,7 +599,7 @@ function processDeviceDl(uid,objdata){
                     "version":VERSION
                 };
                 devices.push(obj = cloneFromTemplate(remoteSwitchTemplate,repl));
-                console.log("[ProcessDevDl" + uid + "] Ecco 7 "+JSON.stringify(obj));
+                //console.log("[ProcessDevDl" + uid + "] Ecco 7 "+JSON.stringify(obj));
             }
         });
         Object.keys(ds.lightlum).forEach(function (key) {
@@ -611,9 +611,10 @@ function processDeviceDl(uid,objdata){
                     "version":VERSION
                 };
                 devices.push(obj = cloneFromTemplate(lightLumTemplate,repl));
-                console.log("[ProcessDevDl" + uid + "] Ecco 8 "+JSON.stringify(obj));
+                //console.log("[ProcessDevDl" + uid + "] Ecco 8 "+JSON.stringify(obj));
             }
         });
+        console.log("[ProcessDevDl" + uid + "] Finished "+JSON.stringify(devices));
         let olddevices = ud.devices;
         let addDev = function(idx) {
             if (idx<devices.length) {
