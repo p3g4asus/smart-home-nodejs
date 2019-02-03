@@ -520,7 +520,7 @@ function processDeviceDl(uid,objdata){
                 Object.assign(volumeNeeded, rn.volumekeys);
                 //console.log("[ProcessDevDl" + uid + "] Ecco 2 "+JSON.stringify(repl));
                 var regnum = rn.numData!=null?
-                    new RegExp(rn.numData.pre+"[0-9]+"+rn.numData.post):null;
+                    new RegExp("^"+rn.numData.pre+"[0-9]+"+rn.numData.post+"$"):null;
                 //console.log("[ProcessDevDl" + uid + "] Ecco 2 ");
                 obj = cloneFromTemplate(remoteNumTemplate,repl);
                 //console.log("[ProcessDevDl" + uid + "] Ecco 3 "+JSON.stringify(obj));
