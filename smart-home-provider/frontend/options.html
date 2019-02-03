@@ -1196,7 +1196,7 @@ HTMLImports.whenReady(() => {
 					str = "Device "+devn+" learning key(s) "+JSON.stringify(a.irname);
 				}
 				else if (cl=="ActionNotifystate") {
-					str = "Device "+devn+" notifying state "+(a.device.state && a.device.state!="0"?"on":"off");
+					str = "Device "+devn+" notifying state "+(a.device.state && a.device.state!="0"?"on":"off")+" ("+a.device.state+")";
 				}
 				else if (cl=="ActionIrask") {
 					str = "Please press "+a.irname+" towards "+devn+" in 10 seconds.";
