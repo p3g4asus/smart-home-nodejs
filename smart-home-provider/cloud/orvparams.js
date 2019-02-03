@@ -72,8 +72,8 @@ var translations = {};
 
 function conMessage(uid,msg,rv) {
     let ud,conn = null;
-    if (ud = DBData[uid]) {
-        conn = ud['conn'];
+    if ((ud = DBData[uid])) {
+        conn = ud.conn;
         if (conn) {
             conn.write('event: conmsg\n');
             conn.write('data: ' + JSON.stringify({'msg':'conmsg','pld':{'msg':msg,'retval':rv}}) + '\n\n');
@@ -90,9 +90,9 @@ function editTranslation(uid,lang,renames) {
         len++;
     });
     let ud,conn = null,cli = null;
-    if (ud = DBData[uid]) {
-        conn = ud['conn'];
-        cli = ud['client'];
+    if ((ud = DBData[uid])) {
+        conn = ud.conn;
+        cli = ud.client;
     }
     return new Promise(function(resolve,reject) {
         if (!len) {
@@ -110,7 +110,7 @@ function editTranslation(uid,lang,renames) {
                         conn.write('event: conmsg\n');
                         conn.write('data: ' + JSON.stringify({'msg':'conmsg','pld':{'msg':'Translatin add error '+e,'retval':null}}) + '\n\n');
                     }
-                    reject1(e);
+                    reject(e);
                 }
                 else {
                     Object.assign(translations[lang],renames);
@@ -122,7 +122,7 @@ function editTranslation(uid,lang,renames) {
                     if (cli)
                         cli.writecmnd('devicedl');
                 }
-            }
+            };
             eval('redis_client.hmset('+rens+',funcallback);');
         }
     });
@@ -153,7 +153,7 @@ function loadTranslations() {
                         else
                             reject(1500);
                     });
-                }
+                };
                 processTrans(0);
             }
         });
@@ -176,7 +176,7 @@ var DBData = {
         "defaultremote":"blackbeam1:samsung",
         "autologin":true
     }*/
-}
+};
 
 function getTranslation(name,loc) {
     if (translations[loc] && translations[loc][name])
@@ -217,11 +217,10 @@ function replaceObj(obj, repl) {
 }
 
 function replaceRemote(devices,newDevice,newRemote,configuredLocale) {
-    var newRemoteNick = getTranslation(newRemote,configuredLocale);
-    var newDeviceNick = getTranslation(newDevice,configuredLocale);
-    listSync = {};
+    let newRemoteNick = getTranslation(newRemote,configuredLocale);
+    let newDeviceNick = getTranslation(newDevice,configuredLocale);
+    let listSync = {};
     for (var i = 0; i<devices.length; i++) {
-        let modd = false;
         let mdl = devices[i].properties.deviceInfo.model;
         if (mdl=="switch" || mdl=="lightlum")
             continue;
@@ -242,18 +241,18 @@ function replaceRemote(devices,newDevice,newRemote,configuredLocale) {
                         listSync[devices[i].id] = true;
                     }
                 }
-                if (devices[i].properties.customData["offset"]==0)
+                if (devices[i].properties.customData.offset==0)
                     continue;
             }
         }
         if (devices[i].properties.customData.hasOwnProperty("device"))
-            devices[i].properties.customData["device"] = newDevice;
+            devices[i].properties.customData.device = newDevice;
         if (devices[i].properties.customData.hasOwnProperty("devicenick"))
-            devices[i].properties.customData["devicenick"] = newDeviceNick;
+            devices[i].properties.customData.devicenick = newDeviceNick;
         if (devices[i].properties.customData.hasOwnProperty("remote"))
-            devices[i].properties.customData["remote"] = newRemote;
+            devices[i].properties.customData.remote = newRemote;
         if (devices[i].properties.customData.hasOwnProperty("remotenick"))
-            devices[i].properties.customData["remotenick"] = newRemoteNick;
+            devices[i].properties.customData.remotenick = newRemoteNick;
     }
     return listSync;
 }
@@ -261,7 +260,7 @@ function replaceRemote(devices,newDevice,newRemote,configuredLocale) {
 function deviceClosure(msg,dev,uid) {
     return function(eventDetail) {
         deviceOnMessage(eventDetail,msg,dev,uid);
-    }
+    };
 }
 
 function getDeviceDbgName(dev) {
@@ -275,35 +274,35 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
     if (msg=="change") {
         try {
             let statesObj;
-            if (eventDetail["data"] && (statesObj = JSON.parse(eventDetail.data))) {
+            if (eventDetail.data && (statesObj = JSON.parse(eventDetail.data))) {
                 let ud = DBData[uid];
-                let cli = ud['client'];
+                let cli = ud.client;
                 let listSync = {};
-                let currentremote = ud["currentremote"];
+                let currentremote = ud.currentremote;
                 let defRemote;
                 let defDevice;
                 let defs;
                 if (dev.properties.deviceInfo.model=="switch" &&
                     statesObj.hasOwnProperty('on')) {
-                    cli.writecmnd("statechange "+dev.properties.customData["device"]+" "+(statesObj.on?"1":"0"));
+                    cli.writecmnd("statechange "+dev.properties.customData.device+" "+(statesObj.on?"1":"0"));
                     dev.states.on = statesObj.on;
                 }
                 else if (dev.properties.deviceInfo.model=="lightlum") {
                     let valtosave = -101;
-                    if (statesObj.hasOwnProperty('on') && statesObj['cmd']=='action.devices.commands.OnOff')
+                    if (statesObj.hasOwnProperty('on') && statesObj.cmd=='action.devices.commands.OnOff')
                         valtosave = statesObj.on?1000:0;
-                    else if (statesObj.hasOwnProperty("brightness") && statesObj['cmd']=='action.devices.commands.BrightnessAbsolute')
+                    else if (statesObj.hasOwnProperty("brightness") && statesObj.cmd=='action.devices.commands.BrightnessAbsolute')
                         valtosave = statesObj.brightness;
 
                     if (valtosave>=0) {
-                        cli.writecmnd("statechange "+dev.properties.customData["device"]+" "+valtosave);
+                        cli.writecmnd("statechange "+dev.properties.customData.device+" "+valtosave);
                         dev.states.on = valtosave>0;
                         if (valtosave>0 && valtosave<=100)
                             dev.states.brightness = valtosave;
                     }
                 }
                 else if (dev.properties.deviceInfo.model=="remotevol") {
-                    if (statesObj['cmd']=='action.devices.commands.BrightnessAbsolute' &&
+                    if (statesObj.cmd=='action.devices.commands.BrightnessAbsolute' &&
                         statesObj.hasOwnProperty('brightness')) {
                         defs = currentremote.split(':');
                         defRemote = defs[1];
@@ -312,12 +311,12 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                         listSync[dev.id] = true;
                         dev.states.on = true;
                         let remoteObj;
-                        let remotes = ud["devicetable"].remote;
-                        let volk = getRemoteVolumeKey(statesObj.brightness,remoteObj = remotes[currentremote]);
+                        let remotes = ud.devicetable.remote;
+                        let volk = getRemoteVolumeKey(statesObj.brightness,remoteObj = remotes[currentremote],dev.properties.customData.pre);
                         if (!volk) {
                             Object.keys(remotes).some(function (remn) {
                                 if (remotes.hasOwnProperty(remn) && (remoteObj = remotes[remn]).filtered) {
-                                    volk = getRemoteVolumeKey(statesObj.brightness,remoteObj);
+                                    volk = getRemoteVolumeKey(statesObj.brightness,remoteObj,dev.properties.customData.pre);
                                     if (volk) {
                                         cli.emitir(remoteObj.device,remoteObj.remote+":"+volk);
                                         return true;
@@ -338,16 +337,16 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                     defs = currentremote.split(':');
                     defRemote = defs[1];
                     defDevice = defs[0];
-                    if (statesObj['cmd']=='action.devices.commands.BrightnessAbsolute' &&
+                    if (statesObj.cmd=='action.devices.commands.BrightnessAbsolute' &&
                         statesObj.hasOwnProperty("brightness")) {
                         dev.states.brightness = statesObj.brightness;
                         let num = statesObj.brightness+dev.properties.customData.offset;
-                        let numdata = ud["devicetable"].remote[currentremote].numData;
+                        let numdata = ud.devicetable.remote[currentremote].numData;
                         if (numdata) {
                             cli.emitir(defDevice,defRemote+":"+numdata.pre+num+numdata.post);
                         }
                     }
-                    else if (statesObj['cmd']=='action.devices.commands.OnOff') {
+                    else if (statesObj.cmd=='action.devices.commands.OnOff') {
                         if (!statesObj.on)
                             cli.emitir(defDevice,defRemote+":power");
                         dev.states.on = true;
@@ -362,7 +361,7 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                     defRemote = defs[1];
                     defDevice = defs[0];
                     let mul = 1;
-                    if (statesObj['cmd']=='action.devices.commands.BrightnessAbsolute' && statesObj.hasOwnProperty("brightness")) {
+                    if (statesObj.cmd=='action.devices.commands.BrightnessAbsolute' && statesObj.hasOwnProperty("brightness")) {
                         dev.states.brightness = statesObj.brightness;
                         mul = statesObj.brightness;
                     }
@@ -373,7 +372,7 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                     }
                     let key = dev.properties.customData.key;
                     if (key.charAt(0)!='@') {
-                        let remotes = ud["devicetable"].remote;
+                        let remotes = ud.devicetable.remote;
                         let remoteObj = remotes[currentremote];
                         if (remoteObj.keys.indexOf(key)<0) {
                             Object.keys(remotes).some(function (remn) {
@@ -391,7 +390,7 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                         key = defRemote+":"+key+"#"+mul;
                     }
                     else {
-                        let dtitem = ud["devicetable"].sh[dev.properties.customData.device+':'+key.substring(1)];
+                        let dtitem = ud.devicetable.sh[dev.properties.customData.device+':'+key.substring(1)];
                         defDevice = dtitem.device;
                         if (dtitem.lastremote) {
                             defRemote = dtitem.lastremote;
@@ -400,15 +399,15 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                     }
                     cli.emitir(defDevice,key);
                 }
-                if (currentremote!=ud["currentremote"]) {
-                    console.log("[DevMsg" + uid + "] Changing current remote: "+ud["currentremote"]+"->"+currentremote);
-                    ud["currentremote"] = currentremote;
-                    Object.assign(listSync, replaceRemote(ud["devices"],defDevice,defRemote,ud.user.options.language));
+                if (currentremote!=ud.currentremote) {
+                    console.log("[DevMsg" + uid + "] Changing current remote: "+ud.currentremote+"->"+currentremote);
+                    ud.currentremote = currentremote;
+                    Object.assign(listSync, replaceRemote(ud.devices,defDevice,defRemote,ud.user.options.language));
                 }
                 let devicesModded = [];
                 Object.keys(listSync).forEach(function (key) {
                     if (listSync.hasOwnProperty(key)) {
-                        devicesModded.push(ud["devices"][parseInt(key)]);
+                        devicesModded.push(ud.devices[parseInt(key)]);
                     }
                 });
                 devMod(uid,devicesModded);
@@ -467,10 +466,10 @@ function processDeviceDl(uid,objdata){
     try {
         var ud = DBData[uid];
         var ds = createDeviceTable(objdata,ud.user);
-        ud["devicetable"] = ds;
+        ud.devicetable = ds;
         let configuredLocale = ud.user.options.language;
         var devices = [];
-        var volumeNeeded = false;
+        var volumeNeeded = {};
         var keyDevices = {"power":0};
         let idxoffset = parseInt(uid)*DEVICEID_FACTOR;
         let defaultremote = ud.user.options.defaultremote;
@@ -504,24 +503,22 @@ function processDeviceDl(uid,objdata){
         var defRemoteNick = getTranslation(defRemote,configuredLocale);
         var defDeviceNick = getTranslation(defDevice,configuredLocale);
         var obj,repl = {};
-        ud.user.options.defaultremote = ud["currentremote"] = defaultremote;
-        ud["nicks"] = {};
+        ud.user.options.defaultremote = ud.currentremote = defaultremote;
+        ud.nicks = {};
         console.log("[ProcessDevDl" + uid + "] Ecco 1 "+defRemoteNick+"/"+defDeviceNick);
         Object.keys(ds.remote).forEach(function (key) {
             let rn;
             if (ds.remote.hasOwnProperty(key) && (rn = ds.remote[key]).filtered) {
                 repl = {
                     "didx":devices.length+idxoffset,
-                    "device":rn["device"],
-                    "devicenick":rn["devicenick"],
-                    "remote":rn["remote"],
-                    "remotenick":rn["remotenick"],
+                    "device":rn.device,
+                    "devicenick":rn.devicenick,
+                    "remote":rn.remote,
+                    "remotenick":rn.remotenick,
                     "version":VERSION
                 };
+                Object.assign(volumeNeeded, rn.volumekeys);
                 //console.log("[ProcessDevDl" + uid + "] Ecco 2 "+JSON.stringify(repl));
-
-                if (rn.volumekeys.length)
-                    volumeNeeded = true;
                 var regnum = rn.numData!=null?
                     new RegExp(rn.numData.pre+"[0-9]+"+rn.numData.post):null;
                 console.log("[ProcessDevDl" + uid + "] Ecco 2 ");
@@ -547,15 +544,21 @@ function processDeviceDl(uid,objdata){
                 }
             }
         });
-        if (volumeNeeded) {
+        let vkk = Object.keys(volumeNeeded);
+        if (vkk.length) {
             repl.version = VERSION;
-            repl.didx = devices.length+idxoffset;
             repl.remote = defRemote;
             repl.remotenick = defRemoteNick;
             repl.device = defDevice;
             repl.devicenick = defDeviceNick;
-            devices.push(obj = cloneFromTemplate(remoteVolumeTemplate,repl));
-            console.log("[ProcessDevDl" + uid + "] Ecco 5 "+JSON.stringify(obj));
+            vkk.forEach(function (key) {
+                repl.pre = key;
+                repl.didx = devices.length+idxoffset;
+                repl.name = getTranslation(key,configuredLocale);
+                devices.push(obj = cloneFromTemplate(remoteVolumeTemplate,repl));
+                console.log("[ProcessDevDl" + uid + "] Ecco 5 "+JSON.stringify(obj));
+            });
+
         }
         repl.version = VERSION;
         repl.remote = defRemote;
@@ -571,17 +574,16 @@ function processDeviceDl(uid,objdata){
         }
         replaceRemote(devices,defDevice,defRemote,ud.user.options.language);
         Object.keys(ds.sh).forEach(function (key) {
-            var rn;
             if (ds.sh.hasOwnProperty(key) && ds.sh[key].filtered) {
-                var rn = ds.sh[key];
+                let rn = ds.sh[key];
                 repl = {
                     "didx":devices.length+idxoffset,
-                    "device":rn["device"],
-                    "devicenick":rn["devicenick"],
+                    "device":rn.device,
+                    "devicenick":rn.devicenick,
                     "remote":defRemote,
                     "remotenick":defRemoteNick,
-                    "key":rn["key"],
-                    "keynick":rn["keynick"],
+                    "key":rn.key,
+                    "keynick":rn.keynick,
                     "version":VERSION
                 };
                 devices.push(obj = cloneFromTemplate(remoteKeyTemplate,repl));
@@ -612,7 +614,7 @@ function processDeviceDl(uid,objdata){
                 console.log("[ProcessDevDl" + uid + "] Ecco 8 "+JSON.stringify(obj));
             }
         });
-        let olddevices = ud["devices"];
+        let olddevices = ud.devices;
         let addDev = function(idx) {
             if (idx<devices.length) {
                 let dev = devices[idx];
@@ -633,7 +635,7 @@ function processDeviceDl(uid,objdata){
                     addDev(idx+1);
                 });
             }
-        }
+        };
         let removeDev = function(idx) {
             if (exports.onRemove && olddevices && idx<olddevices.length) {
                 let dev = devices[idx];
@@ -652,12 +654,12 @@ function processDeviceDl(uid,objdata){
                 });
             }
             else {
-                ud["devices"] = devices;
-                ud["events"] = {};
+                ud.devices = devices;
+                ud.events = {};
                 if (exports.onAdd)
                     addDev(0);
             }
-        }
+        };
         removeDev(0);
     }
     catch (e) {
@@ -674,7 +676,7 @@ function processMessage(uid,msg,res) {
     try {
         console.log("[ProcessMessage" + uid + "] "+msg+" "+JSON.stringify(res));
         let dev,ud,devices;
-        if ((dev = res["action"]["device"]) && (ud = DBData[uid]) && (devices = ud["devices"])) {
+        if ((dev = res.action.device) && (ud = DBData[uid]) && (devices = ud.devices)) {
             let devname = dev.name;
             if (msg=="ActionNotifystate" || msg=="ActionStateon" || msg=="ActionStateon" || msg=="ActionStatechange") {
                 let subtype;
@@ -683,7 +685,7 @@ function processMessage(uid,msg,res) {
                     ((subtype = parseInt(dev.subtype))==0 || subtype==2))) {
                     devices.some(function(d) {
                         if (d.properties.deviceInfo.model=="switch" &&
-                            d.properties.customData["device"]==devname) {
+                            d.properties.customData.device==devname) {
                             let st = dev.state=="1";
                             if (st!=d.states.on) {
                                 d.states.on = st;
@@ -698,10 +700,10 @@ function processMessage(uid,msg,res) {
                 else if (dev.type=="DeviceVirtual" || (dev.type=="DevicePrimelan" && subtype==1)) {
                     devices.some(function(d) {
                         if (d.properties.deviceInfo.model=="lightlum" &&
-                            d.properties.customData["device"]==devname) {
+                            d.properties.customData.device==devname) {
                             let ist = parseInt(dev.state);
                             let st = ist>0;
-                            bright = !ist?50:ist;
+                            let bright = !ist?50:ist;
                             if (st!=d.states.on || d.states.brightness!=bright) {
                                 d.states.on = st;
                                 d.states.brightness = bright;
@@ -720,7 +722,7 @@ function processMessage(uid,msg,res) {
             else if (msg=="ActionEmitir") {
                 var newkeys = [];
                 var lastNum = "";
-                res["action"]["irname"].forEach(function(k) {
+                res.action.irname.forEach(function(k) {
                     var effectivename = "",idx;
                     var effectiveremote = "";
                     var effectivenum = 1;
@@ -731,7 +733,7 @@ function processMessage(uid,msg,res) {
                     }
                     else if (k.charAt(0)!='$' && (idx = k.indexOf(':'))>0 && idx<k.length-1) {
                         var kks = k.split(':');
-                        effectivename = kks[1]
+                        effectivename = kks[1];
                         effectiveremote = kks[0];
                     }
                     if ((idx = effectivename.indexOf('#'))>0 && idx<effectivename.length-1)  {
@@ -739,7 +741,7 @@ function processMessage(uid,msg,res) {
                         effectivename = effectivename.substring(0,idx);
                     }
                     //console.log("[ProcessMessage" + uid + "] foundNK "+k+" "+effectiveremote+'/'+effectivename+'/'+effectivenum);
-                    if ((remoteObj = ud["devicetable"].remote[devname+':'+effectiveremote]) &&
+                    if ((remoteObj = ud.devicetable.remote[devname+':'+effectiveremote]) &&
                         remoteObj.numData && remoteObj.numData.pre.length==0 &&
                         remoteObj.numData.post.length==0) {
                         if (/^[0-9]+$/.exec(effectivename)) {
@@ -766,8 +768,8 @@ function processMessage(uid,msg,res) {
                 let devicesModded = [];
                 devices.forEach(function(d) {
                     var modd = false;
-                    if (d.properties.deviceInfo.model=="remotenum" && d.properties.customData["offset"]==0) {
-                        var newrunning = d.properties.customData["device"]==devname;
+                    if (d.properties.deviceInfo.model=="remotenum" && d.properties.customData.offset==0) {
+                        var newrunning = d.properties.customData.device==devname;
                         if (d.states.on!=newrunning)
                             modd = true;
                     }
@@ -782,15 +784,15 @@ function processMessage(uid,msg,res) {
                         d.states.on = true;
                     }
                     newkeys.forEach(function(k) {
-                        let offset = d.properties.customData["offset"];
+                        let offset = d.properties.customData.offset;
                         if (d.properties.deviceInfo.model=="remotenum" &&
-                            ((d.properties.customData["device"]==devname &&
-                            d.properties.customData["remote"]==k.remote) || offset)) {
+                            ((d.properties.customData.device==devname &&
+                            d.properties.customData.remote==k.remote) || offset)) {
                             if (offset==0)
                                 d.states.on = true;
                             modd = true;
                             var remoteObj;
-                            if ((remoteObj = ud["devicetable"].remote[devname+':'+k.remote]) &&
+                            if ((remoteObj = ud.devicetable.remote[devname+':'+k.remote]) &&
                                 (remoteObj = remoteObj.numData)) {
                                 var reg = new RegExp(remoteObj.pre+"([0-9]+)"+remoteObj.post);
                                 var m = reg.exec(k.name);
@@ -805,7 +807,7 @@ function processMessage(uid,msg,res) {
                             console.log("[ProcessMessage" + uid + "] 1) Change on device "+getDeviceDbgName(d)+': '+JSON.stringify(d.states));
                         }
                         else if (d.properties.deviceInfo.model=="remotekey" &&
-                            d.properties.customData["key"]==k.name) {
+                            d.properties.customData.key==k.name) {
                             d.states.on = true;
                             modd = true;
                             console.log("[ProcessMessage" + uid + "] 2) Change on device "+getDeviceDbgName(d)+': '+JSON.stringify(d.states));
@@ -831,7 +833,7 @@ function processMessage(uid,msg,res) {
             }
         }
         let conn;
-        if (ud && (conn = ud['conn']) && res) {
+        if (ud && (conn = ud.conn) && res) {
             console.log("[OnMessage" + uid + "] WRITING EVENT");
             conn.write('event: orvmsg\n');
             conn.write('data: ' + JSON.stringify({'pld':res,'msg':'orvmsg'}) + '\n\n');
@@ -853,7 +855,7 @@ function configureModule(onAdd,onMod,onRemove,doAutoLogin) {
                 doAutoLogin(us.uid);
             });
         });
-    }
+    };
     return loadTranslations().then(function(trans) {
         translations = trans;
         console.log("[TRANS ok] "+JSON.stringify(trans));
@@ -873,12 +875,12 @@ exports.onRemove = null;
 
 function processLearnRequest(uid,device,lst) {
     let ud,cli;
-    if ((ud = DBData[uid]) && (cli = ud['client'])) {
+    if ((ud = DBData[uid]) && (cli = ud.client)) {
         cli.promise('learnir '+device+' '+lst.join(' '),300).then(function(res) {
             cli.writecmnd('devicedl');
         }).catch(function(err) {
             let conn;
-            if (conn = ud['conn']) {
+            if ((conn = ud.conn)) {
                 conn.write('event: conmsg\n');
                 conn.write('data: ' + JSON.stringify({'msg':'conmsg','pld':{'msg':'Learn error: timeout.','retval':null}}) + '\n\n');
             }
@@ -892,12 +894,12 @@ exports.processLearnRequest = processLearnRequest;
 
 function processShRequest(uid,device,name,lst) {
     let ud,cli;
-    if ((ud = DBData[uid]) && (cli = ud['client'])) {
+    if ((ud = DBData[uid]) && (cli = ud.client)) {
         cli.promise('createsh '+device+' '+name.substring(1)+' '+lst.join(' '),5).then(function(res) {
             cli.writecmnd('devicedl');
         }).catch(function(err) {
             let conn;
-            if (conn = ud['conn']) {
+            if ((conn = ud.conn)) {
                 conn.write('event: conmsg\n');
                 conn.write('data: ' + JSON.stringify({'msg':'conmsg','pld':{'msg':'Sh Create error: timeout.','retval':null}}) + '\n\n');
             }
@@ -911,7 +913,7 @@ exports.processShRequest = processShRequest;
 
 function processEmitRequest(uid,type,device,remote,key) {
     let ud,cli;
-    if ((ud = DBData[uid]) && (cli = ud['client'])) {
+    if ((ud = DBData[uid]) && (cli = ud.client)) {
         if (type=="k3" && key=="switchon")
             cli.writecmnd('stateon '+device);
         else if (type=="k4") {
@@ -941,7 +943,7 @@ function initUserDevices(user,test,force) {
     let uid = user.uid;
     if (typeof test=="undefined")
         test = false;
-    if (test || !(ud = DBData[uid]) || !(cli = ud['client']) || force) {
+    if (test || !(ud = DBData[uid]) || !(cli = ud.client) || force) {
         if (cli)
             cli.disconnect();
         cli = new tcpclient.MFZClient(uid,user.options.orvhost,user.options.orvport,user.options.orvretry);
@@ -949,7 +951,7 @@ function initUserDevices(user,test,force) {
             DBData[uid] = {'user':user,'client':cli};
             cli.setOnError(function(uid,err) {
                 let conn,ud;
-                if ((ud = DBData[uid]) && (conn = ud['conn'])) {
+                if ((ud = DBData[uid]) && (conn = ud.conn)) {
                     conn.write('event: conmsg\n');
                     conn.write('data: ' + JSON.stringify({'msg':'conmsg','pld':{'msg':'Connection error '+err,'retval':null}}) + '\n\n');
                 }
@@ -965,8 +967,8 @@ function initUserDevices(user,test,force) {
                 try {
                     cli.disconnect();
                     let out = createTestDataBundle(obj.obj,user);
-                    console.log('Connected is '+(DBData[uid] && DBData[uid]["client"]));
-                    return {'connected':(DBData[uid] && DBData[uid]["client"])!=null,'dev':out};
+                    console.log('Connected is '+(DBData[uid] && DBData[uid].client));
+                    return {'connected':(DBData[uid] && DBData[uid].client)!=null,'dev':out};
                 }
                 catch (err) {
                     if (err.stack)
@@ -981,8 +983,8 @@ function initUserDevices(user,test,force) {
             });
         }
     }
-    else if (ud['client']) {
-        ud["client"].writecmnd("devicedl");
+    else if (ud.client) {
+        ud.client.writecmnd("devicedl");
     }
     return null;
 }
@@ -1019,14 +1021,14 @@ function createTestDataBundle(obj,user) {
                     "raw":""
                 };
                 devices.push(add);
-                if (dev.type=="DeviceCT10" || dev.type=="DeviceAllOne" || dev.type=="DeviceRM") {
+                if (dev.type=="DeviceCT10" || dev.type=="DeviceAllOne" || dev.type=="DeviceRM" || dev.type.indexOf("DeviceUpnpIR")==0) {
                     add.type+="r"+dev.type.substring(6);
                     add.items = [];
-                    for (var i = 0; i<dev.dir.length; i++) {
-                        var key = dev.dir[i];
-                        var kks = key.split(':');
-                        var rn;
-                        var kn;
+                    for (let i = 0; i<dev.dir.length; i++) {
+                        key = dev.dir[i];
+                        let kks = key.split(':');
+                        let rn;
+                        let kn;
                         if (kks.length>=2) {
                             if (!remoteAdded[rn = devname+':'+kks[0]]) {
                                 add.items.push(remoteAdded[rn] = {
@@ -1057,9 +1059,9 @@ function createTestDataBundle(obj,user) {
                             });
                         }
                     }
-                    for (var i = 0; i<dev.sh.length; i++) {
-                        var key = dev.sh[i];
-                        var kks = key.split(':');
+                    for (let i = 0; i<dev.sh.length; i++) {
+                        key = dev.sh[i];
+                        let kks = key.split(':');
                         if (kks.length>=2) {
                             let shn = kks[0].substr(1);
                             let kn = devname+":"+kks[0];
@@ -1078,9 +1080,9 @@ function createTestDataBundle(obj,user) {
                                 });
                             }
                             if (!shAdded[kn]) {
-                                var m = shChannelRegexp.exec(shn);
+                                let m = shChannelRegexp.exec(shn);
                                 //console.log("[DeviceTable" + user.uid + "] Ecco 5 "+shn+ " "+m);
-                                var shnick = m?
+                                let shnick = m?
                                     getTranslation(m[2].replace(/_/g,' '),configuredLocale):
                                     getTranslation(shn,configuredLocale);
                                 shAdded[devname].items.push(shAdded[kn] = {
@@ -1169,7 +1171,7 @@ function createTestDataBundle(obj,user) {
                                 "items":null,
                                 "raw":""
                             }
-                        )
+                        );
                     }
                     add.items = [{
                         "type":"r4",
@@ -1206,19 +1208,19 @@ function createDeviceTable(obj,user) {
         console.log("[DeviceTable" + user.uid + "] Ecco 1 "+JSON.stringify(Object.keys(h)));
         Object.keys(h).forEach(function (key) {
             if (h.hasOwnProperty(key)) {
-                var dev = h[key];
-                var devname = key;
+                let dev = h[key];
+                let devname = key;
                 let subtype;
                 console.log("[DeviceTable" + user.uid + "] Ecco 2 "+devname+" "+dev.type);
-                if (dev.type=="DeviceCT10" || dev.type=="DeviceAllOne" || dev.type=="DeviceRM") {
+                if (dev.type=="DeviceCT10" || dev.type=="DeviceAllOne" || dev.type=="DeviceRM" || dev.type.indexOf("DeviceUpnpIR")==0) {
 
                     var numDatas = {};
-                    for (var i = 0; i<dev.dir.length; i++) {
-                        var key = dev.dir[i];
-                        var kks = key.split(':');
-                        var rn;
-                        var kn;
-                        var insert = true;
+                    for (let i = 0; i<dev.dir.length; i++) {
+                        key = dev.dir[i];
+                        let kks = key.split(':');
+                        let rn;
+                        let kn;
+                        let insert = true;
                             //console.log("[DeviceTable" + user.uid + "] Ecco 2.1 "+kks[0]+":"+kks[1]);
                         if (kks.length>=2) {
                             //console.log("[DeviceTable" + user.uid + "] Ecco 2.2 "+kks[0]+":"+kks[1]+" "+JSON.stringify(devices));
@@ -1229,18 +1231,19 @@ function createDeviceTable(obj,user) {
                                     "remote": kks[0],
                                     "keysnick":[],
                                     "numData":null,
+                                    "devtype":dev.type,
                                     "device":devname,
                                     "devicenick":getTranslation(devname,configuredLocale),
                                     "remotenick":getTranslation(kks[0],configuredLocale),
-                                    "volumekeys":[]
+                                    "volumekeys":{}
                                 };
                                 numDatas[rn] = {};
                             }
                             kn = kks[1];
                             console.log("[DeviceTable" + user.uid + "] Ecco 3 "+rn+"/"+kn);
-                            var m = remoteNumRegexp.exec(kn);
+                            let m = remoteNumRegexp.exec(kn);
                             if (m) {
-                                var key2 = m[1]+":"+m[3]
+                                let key2 = m[1]+":"+m[3];
                                 if (!numDatas[rn][key2])
                                     numDatas[rn][key2] = 0;
                                 numDatas[rn][key2]++;
@@ -1248,7 +1251,15 @@ function createDeviceTable(obj,user) {
                             else {
                                 m = remoteVolumeRegexp.exec(kn);
                                 if (m) {
-                                    devices.remote[rn].volumekeys.push(kn);
+                                    let oo = devices.remote[rn].volumekeys[m[1]];
+                                    if (!oo)
+                                        devices.remote[rn].volumekeys[m[1]] = oo = {
+                                            "l":[],
+                                            "flag": 0
+                                        };
+
+                                    oo.l.push(kn);
+                                    oo.flag |= (m[2]=='+'?1:2);
                                     insert = false;
                                 }
                             }
@@ -1272,26 +1283,29 @@ function createDeviceTable(obj,user) {
                             }
                         });
                         if (maxprefix) {
-                            var kks = realPrefix.split(":");
+                            let kks = realPrefix.split(":");
                             devices.remote[rn].numData = {"pre":kks[0],"post":kks[1]};
                         }
                     });
-                    for (var i = 0; i<dev.sh.length; i++) {
-                        var key = dev.sh[i];
-                        var kks = key.split(':');
+                    for (let i = 0; i<dev.sh.length; i++) {
+                        let key = dev.sh[i];
+                        let kks = key.split(':');
                         if (kks.length>=2) {
-                            var shn = kks[0].substr(1),shkey = devname+':'+shn;
-                            var lastremote = kks.length>2?kks[1]:"";
+                            let shn = kks[0].substr(1),shkey = devname+':'+shn;
+                            let lastremote = kks.length>2?kks[1]:"";
                             let newfiltered = kks.length<=2 || filters.indexOf(devname+":"+lastremote)>=0;
+                            let m = shChannelRegexp.exec(shn);
+                            let lastnum = m?parseInt(m[1]):(kks.length>2 && kks[2]=="av"?-1:-100);
                             if (typeof devices.sh[shkey]!="undefined") {
                                 if (newfiltered)
                                     newfiltered = devices.sh[shkey].filtered;
                                 if (!lastremote.length)
                                     lastremote = devices.sh[shkey].lastremote;
+                                if (lastnum==-100)
+                                    lastnum = devices.sh[shkey].isnum;
                             }
-                            var m = shChannelRegexp.exec(shn);
                             //console.log("[DeviceTable" + user.uid + "] Ecco 5 "+shn+ " "+m);
-                            var shnick = m?
+                            let shnick = m?
                                 getTranslation(m[2].replace(/_/g,' '),configuredLocale):
                                 getTranslation(shn,configuredLocale);
                             devices.sh[shkey] = {
@@ -1300,7 +1314,8 @@ function createDeviceTable(obj,user) {
                                 "lastremote":lastremote,
                                 "key":'@'+shn,
                                 "devicenick":getTranslation(devname,configuredLocale),
-                                "keynick":shnick
+                                "keynick":shnick,
+                                "isnum":lastnum
                             };
                         }
                     }
@@ -1325,7 +1340,7 @@ function createDeviceTable(obj,user) {
                         "filtered": filters.indexOf(devname+':setlum')>=0,
                         "device":devname,
                         "devicenick": devnick
-                    }
+                    };
                 }
             }
         });
@@ -1334,7 +1349,7 @@ function createDeviceTable(obj,user) {
     return devices;
 }
 
-var remoteVolumeRegexp = /^v([0-9]*)([\+\-])$/; //var m = /^v([0-9]*)([\+\-])/.exec('v+'); m[1] m[2] (o m null)
+var remoteVolumeRegexp = /^([a-zA-Z]+)([0-9]*)([\+\-])$/; //var m = /^v([0-9]*)([\+\-])/.exec('v+'); m[1] m[2] (o m null)
 
 var remoteNumRegexp = /^([^0-9]*)([0-9]+)([^\+\-]*)$/;
 
@@ -1367,7 +1382,7 @@ function manageRawChanges(uid,newraws) {
     let arrprocess = Object.keys(newraws);
     if (!arrprocess.length)
         resolve(completed);
-    else if ((ud = DBData[uid]) && (cli = ud['client'])) {
+    else if ((ud = DBData[uid]) && (cli = ud.client)) {
         let atleastOne = false;
         let manageResult = function(n,rawk,rv) {
             if (rv==1)
@@ -1379,7 +1394,7 @@ function manageRawChanges(uid,newraws) {
                 resolve(completed);
             else
                 reject(completed);
-        }
+        };
         let processRaw = function(n) {
             let rawk = arrprocess[n];
             let rawv = newraws[rawk];
@@ -1399,7 +1414,7 @@ function manageRawChanges(uid,newraws) {
             }
             else
                 manageResult(n,rawk,800);
-        }
+        };
         processRaw(0);
     }
     else
@@ -1411,8 +1426,8 @@ exports.manageRawChanges = manageRawChanges;
 function setSiteConnection(uid,conn) {
     let ud,cli;
     console.log("[SetSiteConnection" + uid + "] "+uid);
-    if ((ud = DBData[uid]) && (cli = ud['client'])) {
-        ud['conn'] = conn;
+    if ((ud = DBData[uid]) && (cli = ud.client)) {
+        ud.conn = conn;
         return true;
     }
     else
@@ -1420,27 +1435,28 @@ function setSiteConnection(uid,conn) {
 }
 exports.setSiteConnection = setSiteConnection;
 
-function getRemoteVolumeKey(brightn,remoteObj) {
-    if (!remoteObj)
+function getRemoteVolumeKey(brightn,remoteObj,key) {
+    if (!remoteObj || !remoteObj.volumekeys[key])
         return null;
-    var intval = parseInt(brightn)-50;
+    let k = remoteObj.volumekeys[key];
+    var intval = k.flag==3?parseInt(brightn)-50:parseInt(brightn);
     var volk = "";
     if (intval<0) {
         intval = -intval;
-        if (remoteObj.volumekeys.indexOf(volk = "v"+intval+"-")<0)
-            volk = "v-";
+        if (k.l.indexOf(volk = key+intval+"-")<0)
+            volk = key+"-";
         else
             return volk;
     }
     else {
         if (intval==0)
             intval = 1;
-        if (remoteObj.volumekeys.indexOf(volk = "v"+intval+"+")<0)
-            volk = "v+";
+        if (k.l.indexOf(volk = key+intval+"+")<0)
+            volk = key+"+";
         else
             return volk;
     }
-    return remoteObj.volumekeys.indexOf(volk)>=0?volk+"#"+intval:null;
+    return k.l.indexOf(volk)>=0?volk+"#"+intval:null;
 }
 
 var remoteVolumeTemplate = {
@@ -1454,9 +1470,9 @@ var remoteVolumeTemplate = {
             "defaultNames": [
                 "Smart Light"
             ],
-            "name": "volume",
+            "name": "$name$",
             "nicknames": [
-                "volume"
+                "$name$"
             ]
         },
         "willReportState": true,
@@ -1470,6 +1486,7 @@ var remoteVolumeTemplate = {
         "customData": {
             "model": "remotevol",
             "remote": "$remote$",
+            "pre": "$pre$",
             "device": "$device$"
         },
     },
