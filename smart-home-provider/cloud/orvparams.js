@@ -1104,7 +1104,7 @@ function createTestDataBundle(obj,user) {
                                 });
                             }
 
-                            if (kks.length>2) {
+                            if (kks.length==3) {
                                 let lastremote = kks[1];
                                 let newfiltered = filters.indexOf(devname+":"+lastremote)>=0;
                                 if (shAdded[kn].filtered)
@@ -1297,8 +1297,8 @@ function createDeviceTable(obj,user) {
                         let kks = key.split(':');
                         if (kks.length>=2) {
                             let shn = kks[0].substr(1),shkey = devname+':'+shn;
-                            let lastremote = kks.length>2?kks[1]:"";
-                            let newfiltered = kks.length<=2 || filters.indexOf(devname+":"+lastremote)>=0;
+                            let lastremote = kks.length==3?kks[1]:"";
+                            let newfiltered = kks.length<=2 || kks.length>3 || filters.indexOf(devname+":"+lastremote)>=0;
                             let m = shChannelRegexp.exec(shn);
                             let lastnum = m?parseInt(m[1]):(kks.length>2 && kks[2]=="av"?-1:-100);
                             if (typeof devices.sh[shkey]!="undefined") {
