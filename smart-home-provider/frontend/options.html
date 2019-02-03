@@ -238,7 +238,7 @@ limitations under the License.
 					height:15em;
 					overflow-y: auto;
 				}
-				
+
 				.divider{
 					padding-left: 10px;
 					padding-right: 10px;
@@ -255,7 +255,7 @@ limitations under the License.
 				paper-icon-button[hidden] {
 					display: none;
 				}
-				
+
 				paper-icon-button.blue {
 					--paper-icon-button-ink-color: var(--paper-orange-500);
 					background-color: var(--paper-light-blue-500);
@@ -490,7 +490,7 @@ limitations under the License.
 							<paper-icon-button icon="image:control-point" class$="blue [[getRawDevClass(itemRename.type)]]" id="applyduplicate" on-click="duplicateKey" disabled$=[[getDuplicateButtonDisabled(itemRename.idx,itemRename.devicenick,itemRename.remotenick,itemRename.type)]]></paper-icon-button>
 						</div>
 					</div>
-					
+
 					<div class$="layout vertical end [[getRawDevClass(itemRename.type)]]">
 						<paper-textarea
 							class$="padded-both [[getRawDevClass(itemRename.type)]]"
@@ -1196,7 +1196,7 @@ HTMLImports.whenReady(() => {
 					str = "Device "+devn+" learning key(s) "+JSON.stringify(a.irname);
 				}
 				else if (cl=="ActionNotifystate") {
-					str = "Device "+devn+" notifying state "+(a.device.state?"on":"off");
+					str = "Device "+devn+" notifying state "+(a.device.state && a.device.state!="0"?"on":"off");
 				}
 				else if (cl=="ActionIrask") {
 					str = "Please press "+a.irname+" towards "+devn+" in 10 seconds.";
@@ -1416,7 +1416,7 @@ HTMLImports.whenReady(() => {
 				it.idx = idx;
 			});
 			if (this.learnDialogRowInvalid(el))
-				this.setLearnDialogElementsOk(false,true);			
+				this.setLearnDialogElementsOk(false,true);
 		}
 
 		learnDialogGetRemoveButtonDisabled(idx,p0,p1,p2,last) {
@@ -1561,7 +1561,7 @@ HTMLImports.whenReady(() => {
 		getRemoteNickInvalid(v,type) {
 			return !/^[0-9a-zA-Z \-\+&]+$/.exec(v) && !this.getRenameRemoteInputDisabled(0,type);
 		}
-		
+
 		getDeviceNameInvalid(v,type) {
 			return !/^[0-9a-zA-Z_\-\+]+$/.exec(v);
 		}
@@ -1589,7 +1589,7 @@ HTMLImports.whenReady(() => {
 		getRenameButtonDisabled(idx,device,remote,type) {
 			return this.getRemoteNickInvalid(remote,type) || this.getDeviceNickInvalid(device,type);
 		}
-		
+
 		getDuplicateButtonDisabled(idx,device,remote,type) {
 			return this.getRemoteNameInvalid(remote,type) || this.getDeviceNameInvalid(device,type);
 		}
@@ -1899,7 +1899,7 @@ HTMLImports.whenReady(() => {
 		getSelectedKeyIcon(item,filtered) {
 			return this.getSelectedRemoteIcon(item,filtered);
 		}
-		
+
 		duplicateKey() {
 			let idx = this.itemRename.idx;
 			if (idx>=0 && this.itemRename.type.startsWith('k')) {
