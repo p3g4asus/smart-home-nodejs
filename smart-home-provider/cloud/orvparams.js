@@ -220,6 +220,8 @@ function replaceRemote(devices,newDevice,newRemote,configuredLocale) {
     let newRemoteNick = getTranslation(newRemote,configuredLocale);
     let newDeviceNick = getTranslation(newDevice,configuredLocale);
     let listSync = {};
+    let cd;
+    let key;
     for (var i = 0; i<devices.length; i++) {
         let mdl = devices[i].properties.deviceInfo.model;
         if (mdl=="switch" || mdl=="lightlum")
@@ -245,14 +247,20 @@ function replaceRemote(devices,newDevice,newRemote,configuredLocale) {
                     continue;
             }
         }
-        if (devices[i].properties.customData.hasOwnProperty("device"))
-            devices[i].properties.customData.device = newDevice;
-        if (devices[i].properties.customData.hasOwnProperty("devicenick"))
-            devices[i].properties.customData.devicenick = newDeviceNick;
-        if (devices[i].properties.customData.hasOwnProperty("remote"))
-            devices[i].properties.customData.remote = newRemote;
-        if (devices[i].properties.customData.hasOwnProperty("remotenick"))
-            devices[i].properties.customData.remotenick = newRemoteNick;
+        if ((key = (cd = devices[i].properties.customData).key) && key.charAt(0)!='@') {
+            if (cd.allowed && cd.allowed[newDevice+':'+newRemote]) {
+                if (cd.hasOwnProperty("device"))
+                    cd.device = newDevice;
+                if (cd.hasOwnProperty("devicenick"))
+                    cd.devicenick = newDeviceNick;
+            }
+        }
+        if (cd.allowed && cd.allowed[newDevice+':'+newRemote]) {
+            if (cd.hasOwnProperty("remote"))
+                cd.remote = newRemote;
+            if (cd.hasOwnProperty("remotenick"))
+                cd.remotenick = newRemoteNick;
+        }
     }
     return listSync;
 }
@@ -534,8 +542,12 @@ function processDeviceDl(uid,objdata){
                 devices.push(obj);
                 for (var i = 0; i<rn.keys.length; i++) {
                     var kn = rn.keys[i];
-                    if ((regnum!=null && regnum.exec(kn)) || keyDevices.hasOwnProperty(kn))
+                    if (regnum!=null && regnum.exec(kn))
                         continue;
+                    else if (keyDevices.hasOwnProperty(kn)) {
+                        devices[keyDevices[kn]].allowed[key] = true;
+                        continue;
+                    }
                     keyDevices[kn] = devices.length;
                     repl.didx = devices.length+idxoffset;
                     repl.keynick = rn.keysnick[i];
@@ -547,6 +559,7 @@ function processDeviceDl(uid,objdata){
                     devices.push(obj = cloneFromTemplate(remoteKeyTemplate,repl));
                     if (mulKeyRegexp.exec(kn))
                         obj.properties.traits.push('action.devices.traits.Brightness');
+                    obj.allowed[key] = true;
                     //console.log("[ProcessDevDl" + uid + "] Ecco 4 "+JSON.stringify(obj));
                 }
             }
@@ -1733,7 +1746,8 @@ var remoteKeyTemplate = {
             "model": "remotekey",
             "key": "$key$",
             "remote": "$remote$",
-            "device": "$device$"
+            "device": "$device$",
+            "allowed":{}
         }
     },
     "states": {
