@@ -221,7 +221,6 @@ function replaceRemote(devices,newDevice,newRemote,configuredLocale) {
     let newDeviceNick = getTranslation(newDevice,configuredLocale);
     let listSync = {};
     let cd;
-    let key;
     for (var i = 0; i<devices.length; i++) {
         let mdl = devices[i].properties.deviceInfo.model;
         if (mdl=="switch" || mdl=="lightlum")
@@ -378,18 +377,26 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                     if (key.charAt(0)!='@') {
                         let remotes = ud.devicetable.remote;
                         let remoteObj = remotes[currentremote];
-                        if (remoteObj.keys.indexOf(key)<0) {
-                            Object.keys(remotes).some(function (remn) {
-                                if (remotes.hasOwnProperty(remn) && (remoteObj = remotes[remn]).filtered) {
-                                    if (remoteObj.keys.indexOf(key)>=0) {
-                                        currentremote = remn;
-                                        defRemote = remoteObj.remote;
-                                        defDevice = remoteObj.device;
-                                        return true;
+                        if (remoteObj.keys.indexOf(key)<0)  {
+                            if ((remoteObj = remotes[defs = dev.properties.customData.device+":"+
+                                dev.properties.customData.remote]) && remoteObj.keys.indexOf(key)<0) {
+                                Object.keys(remotes).some(function (remn) {
+                                    if (remotes.hasOwnProperty(remn) && (remoteObj = remotes[remn]).filtered) {
+                                        if (remoteObj.keys.indexOf(key)>=0) {
+                                            currentremote = remn;
+                                            defRemote = remoteObj.remote;
+                                            defDevice = remoteObj.device;
+                                            return true;
+                                        }
                                     }
-                                }
-                                return false;
-                            });
+                                    return false;
+                                });
+                            }
+                            else {
+                                currentremote = defs;
+                                defRemote = remoteObj.remote;
+                                defDevice = remoteObj.device;
+                            }
                         }
                         key = defRemote+":"+key+"#"+mul;
                     }
@@ -549,10 +556,19 @@ function processDeviceDl(uid,objdata){
                     repl.didx = devices.length+idxoffset;
                     repl.keynick = rn.keysnick[i];
                     repl.key = kn;
-                    repl.remote = defRemote;
-                    repl.device = defDevice;
-                    repl.devicenick = defDeviceNick;
-                    repl.remotenick = defRemoteNick;
+                    if (ds.remote[defDevice+':'+defRemote].keys.indexOf(kn)<0) {
+                        defs = key.split(':');
+                        repl.remote = defs[0];
+                        repl.device = defs[1];
+                        repl.devicenick = getTranslation(defs[0],configuredLocale);
+                        repl.remotenick = getTranslation(defs[1],configuredLocale);
+                    }
+                    else {
+                        repl.remote = defRemote;
+                        repl.device = defDevice;
+                        repl.devicenick = defDeviceNick;
+                        repl.remotenick = defRemoteNick;
+                    }
                     devices.push(obj = cloneFromTemplate(remoteKeyTemplate,repl));
                     if (mulKeyRegexp.exec(kn))
                         obj.properties.traits.push('action.devices.traits.Brightness');
