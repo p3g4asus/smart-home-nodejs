@@ -390,7 +390,9 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                         key = defRemote+":"+key+"#"+mul;
                     }
                     else {
-                        let dtitem = ud.devicetable.sh[dev.properties.customData.device+':'+key.substring(1)];
+                        let dtitem = dev.properties.customData.device+':'+key.substring(1);
+                        console.log("[DevMsg" + uid +"] accessing sh["+dtitem+"]");
+                        dtitem = ud.devicetable.sh[dtitem];
                         defDevice = dtitem.device;
                         if (dtitem.lastremote) {
                             defRemote = dtitem.lastremote;
@@ -417,7 +419,7 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
             console.log(e.stack);
             try {
                 let ud = DBData[uid];
-                console.log("Current DT "+JSON.stringify(ud.devicetable));
+                console.log("[DevMsg" + uid +"] Current DT "+JSON.stringify(ud.devicetable));
             }
             catch (e2) {}
         }
