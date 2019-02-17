@@ -541,7 +541,8 @@ function processDeviceDl(uid,objdata){
                     if (regnum!=null && regnum.exec(kn))
                         continue;
                     else if (keyDevices.hasOwnProperty(kn)) {
-                        devices[keyDevices[kn]].properties.customData.allowed[key] = true;
+                        if ((obj = devices[keyDevices[kn]].properties.customData.allowed))
+                            obj[key] = true;
                         continue;
                     }
                     keyDevices[kn] = devices.length;
