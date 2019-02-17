@@ -247,15 +247,11 @@ function replaceRemote(devices,newDevice,newRemote,configuredLocale) {
                     continue;
             }
         }
-        if ((key = (cd = devices[i].properties.customData).key) && key.charAt(0)!='@') {
-            if (cd.allowed && cd.allowed[newDevice+':'+newRemote]) {
-                if (cd.hasOwnProperty("device"))
-                    cd.device = newDevice;
-                if (cd.hasOwnProperty("devicenick"))
-                    cd.devicenick = newDeviceNick;
-            }
-        }
-        if (cd.allowed && cd.allowed[newDevice+':'+newRemote]) {
+        if ((cd = devices[i].properties.customData).allowed && cd.allowed[newDevice+':'+newRemote]) {
+            if (cd.hasOwnProperty("device"))
+                cd.device = newDevice;
+            if (cd.hasOwnProperty("devicenick"))
+                cd.devicenick = newDeviceNick;
             if (cd.hasOwnProperty("remote"))
                 cd.remote = newRemote;
             if (cd.hasOwnProperty("remotenick"))
@@ -545,7 +541,7 @@ function processDeviceDl(uid,objdata){
                     if (regnum!=null && regnum.exec(kn))
                         continue;
                     else if (keyDevices.hasOwnProperty(kn)) {
-                        devices[keyDevices[kn]].allowed[key] = true;
+                        devices[keyDevices[kn]].properties.customData.allowed[key] = true;
                         continue;
                     }
                     keyDevices[kn] = devices.length;
@@ -559,7 +555,7 @@ function processDeviceDl(uid,objdata){
                     devices.push(obj = cloneFromTemplate(remoteKeyTemplate,repl));
                     if (mulKeyRegexp.exec(kn))
                         obj.properties.traits.push('action.devices.traits.Brightness');
-                    obj.allowed[key] = true;
+                    obj.properties.customData.allowed[key] = true;
                     //console.log("[ProcessDevDl" + uid + "] Ecco 4 "+JSON.stringify(obj));
                 }
             }
