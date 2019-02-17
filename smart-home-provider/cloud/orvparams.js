@@ -558,8 +558,8 @@ function processDeviceDl(uid,objdata){
                     repl.key = kn;
                     if (ds.remote[defDevice+':'+defRemote].keys.indexOf(kn)<0) {
                         defs = key.split(':');
-                        repl.remote = defs[0];
-                        repl.device = defs[1];
+                        repl.device = defs[0];
+                        repl.remote = defs[1];
                         repl.devicenick = getTranslation(defs[0],configuredLocale);
                         repl.remotenick = getTranslation(defs[1],configuredLocale);
                     }
