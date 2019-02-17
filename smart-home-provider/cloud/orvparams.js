@@ -137,7 +137,7 @@ function loadTranslations() {
         	if (err0 || !res0 || res0.constructor !== Array || res0.length==0)
         		reject(err0);
         	else {
-                var trans = {};
+                let trans = {};
                 let okTrans = false;
                 let processTrans = function(n) {
                     redis_client.hgetall("translation:"+res0[n],function(err1,res1) {
@@ -188,7 +188,7 @@ function getTranslation(name,loc) {
 function replaceObj(obj, repl) {
     //try {
     if (typeof obj=="object") {
-        var out = (obj instanceof Array)?[]:{};
+        let out = (obj instanceof Array)?[]:{};
         Object.keys(obj).forEach(function (key) {
             if (obj.hasOwnProperty(key)) {
                 out[key] = replaceObj(obj[key],repl);
@@ -221,7 +221,7 @@ function replaceRemote(devices,newDevice,newRemote,configuredLocale) {
     let newDeviceNick = getTranslation(newDevice,configuredLocale);
     let listSync = {};
     let cd;
-    for (var i = 0; i<devices.length; i++) {
+    for (let i = 0; i<devices.length; i++) {
         let mdl = devices[i].properties.deviceInfo.model;
         if (mdl=="switch" || mdl=="lightlum")
             continue;
@@ -344,9 +344,12 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
                         statesObj.hasOwnProperty("brightness")) {
                         dev.states.brightness = statesObj.brightness;
                         let num = statesObj.brightness+dev.properties.customData.offset;
-                        let numdata = ud.devicetable.remote[currentremote].numData;
-                        if (numdata) {
-                            cli.emitir(defDevice,defRemote+":"+numdata.pre+num+numdata.post);
+                        let numdata;
+                        let curDevice = defDevice,curRemote = defRemote;
+                        if ((numdata = ud.devicetable.remote[currentremote].numData) ||
+                            (numdata = ud.devicetable.remote[(curDevice = dev.properties.customData.device)+":"+
+                                (curRemote = dev.properties.customData.remote)].numData)) {
+                            cli.emitir(curDevice,curRemote+":"+numdata.pre+num+numdata.post);
                         }
                     }
                     else if (statesObj.cmd=='action.devices.commands.OnOff') {
@@ -482,13 +485,14 @@ function cloneFromTemplate(templ, repl) {
 
 function processDeviceDl(uid,objdata){
     try {
-        var ud = DBData[uid];
-        var ds = createDeviceTable(objdata,ud.user);
+        let ud = DBData[uid];
+        let ds = createDeviceTable(objdata,ud.user);
         ud.devicetable = ds;
         let configuredLocale = ud.user.options.language;
-        var devices = [];
-        var volumeNeeded = {};
-        var keyDevices = {"power":0};
+        let devices = [];
+        let volumeNeeded = {};
+        let numNeeded = {};
+        let keyDevices = {"power":0};
         let idxoffset = parseInt(uid)*DEVICEID_FACTOR;
         let defaultremote = ud.user.options.defaultremote;
         if (defaultremote.length==0) {
@@ -511,16 +515,16 @@ function processDeviceDl(uid,objdata){
                 });
             }
         }
-        var defs = defaultremote.split(':');
-        var defRemote = "";
-        var defDevice = "";
+        let defs = defaultremote.split(':');
+        let defRemote = "";
+        let defDevice = "";
         if (defs.length==2) {
             defRemote = defs[1];
             defDevice = defs[0];
         }
-        var defRemoteNick = getTranslation(defRemote,configuredLocale);
-        var defDeviceNick = getTranslation(defDevice,configuredLocale);
-        var obj,repl = {};
+        let defRemoteNick = getTranslation(defRemote,configuredLocale);
+        let defDeviceNick = getTranslation(defDevice,configuredLocale);
+        let obj,repl = {};
         ud.user.options.defaultremote = ud.currentremote = defaultremote;
         ud.nicks = {};
         //console.log("[ProcessDevDl" + uid + "] Ecco 1 "+defRemoteNick+"/"+defDeviceNick);
@@ -537,14 +541,18 @@ function processDeviceDl(uid,objdata){
                 };
                 Object.assign(volumeNeeded, rn.volumekeys);
                 //console.log("[ProcessDevDl" + uid + "] Ecco 2 "+JSON.stringify(repl));
-                var regnum = rn.numData!=null?
+                let regnum = rn.numData!=null?
                     new RegExp("^"+rn.numData.pre+"[0-9]+"+rn.numData.post+"$"):null;
                 //console.log("[ProcessDevDl" + uid + "] Ecco 2 ");
                 obj = cloneFromTemplate(remoteNumTemplate,repl);
+                if (regnum) {
+                    obj.properties.traits.push('action.devices.traits.Brightness');
+                    numNeeded[key] = true;
+                }
                 //console.log("[ProcessDevDl" + uid + "] Ecco 3 "+JSON.stringify(obj));
                 devices.push(obj);
-                for (var i = 0; i<rn.keys.length; i++) {
-                    var kn = rn.keys[i];
+                for (let i = 0; i<rn.keys.length; i++) {
+                    let kn = rn.keys[i];
                     if (regnum!=null && regnum.exec(kn))
                         continue;
                     else if (keyDevices.hasOwnProperty(kn)) {
@@ -594,16 +602,25 @@ function processDeviceDl(uid,objdata){
 
         }
         repl.version = VERSION;
-        repl.remote = defRemote;
-        repl.remotenick = defRemoteNick;
-        repl.device = defDevice;
-        repl.chan = getTranslation("chan",configuredLocale);
-        repl.devicenick = defDeviceNick;
-        for (var i = 0; i<9; i++) {
-            repl.didx = devices.length+idxoffset;
-            repl.offset = 100+i*100;
-            devices.push(obj = cloneFromTemplate(remoteBigNumTemplate,repl));
-            //console.log("[ProcessDevDl" + uid + "] Ecco 5.1 "+JSON.stringify(obj));
+        vkk = Object.keys(numNeeded);
+        if (vkk.length) {
+            if (numNeeded[defDevice+':'+defRemote]) {
+                repl.remote = defRemote;
+                repl.device = defDevice;
+            }
+            else {
+                defs = vkk[0].split(':');
+                repl.device = defs[0];
+                repl.remote = defs[1];
+            }
+            repl.chan = getTranslation("chan",configuredLocale);
+            for (let i = 0; i<9; i++) {
+                repl.didx = devices.length+idxoffset;
+                repl.offset = 100+i*100;
+                devices.push(obj = cloneFromTemplate(remoteBigNumTemplate,repl));
+                obj.properties.customData.allowed = numNeeded;
+                //console.log("[ProcessDevDl" + uid + "] Ecco 5.1 "+JSON.stringify(obj));
+            }
         }
         replaceRemote(devices,defDevice,defRemote,ud.user.options.language);
         Object.keys(ds.sh).forEach(function (key) {
@@ -758,19 +775,19 @@ function processMessage(uid,msg,res) {
             //mettere a on le key presente di questa device
             //mettere a running il remoteNum relativo al telecomando usato
             else if (msg=="ActionEmitir") {
-                var newkeys = [];
-                var lastNum = "";
+                let newkeys = [];
+                let lastNum = "";
                 res.action.irname.forEach(function(k) {
-                    var effectivename = "",idx;
-                    var effectiveremote = "";
-                    var effectivenum = 1;
-                    var remoteObj;
-                    var insert = true;
+                    let effectivename = "",idx;
+                    let effectiveremote = "";
+                    let effectivenum = 1;
+                    let remoteObj;
+                    let insert = true;
                     if (k.charAt(0)=='@') {
                         effectivename = k;
                     }
                     else if (k.charAt(0)!='$' && (idx = k.indexOf(':'))>0 && idx<k.length-1) {
-                        var kks = k.split(':');
+                        let kks = k.split(':');
                         effectivename = kks[1];
                         effectiveremote = kks[0];
                     }
@@ -805,9 +822,9 @@ function processMessage(uid,msg,res) {
                 console.log("[ProcessMessage" + uid + "] nk "+JSON.stringify(newkeys));
                 let devicesModded = [];
                 devices.forEach(function(d) {
-                    var modd = false;
+                    let modd = false;
                     if (d.properties.deviceInfo.model=="remotenum" && d.properties.customData.offset==0) {
-                        var newrunning = d.properties.customData.device==devname;
+                        let newrunning = d.properties.customData.device==devname;
                         if (d.states.on!=newrunning)
                             modd = true;
                     }
@@ -829,13 +846,13 @@ function processMessage(uid,msg,res) {
                             if (offset==0)
                                 d.states.on = true;
                             modd = true;
-                            var remoteObj;
+                            let remoteObj;
                             if ((remoteObj = ud.devicetable.remote[devname+':'+k.remote]) &&
                                 (remoteObj = remoteObj.numData)) {
-                                var reg = new RegExp(remoteObj.pre+"([0-9]+)"+remoteObj.post);
-                                var m = reg.exec(k.name);
+                                let reg = new RegExp(remoteObj.pre+"([0-9]+)"+remoteObj.post);
+                                let m = reg.exec(k.name);
                                 if (m) {
-                                    var num = parseInt(m[1]);
+                                    let num = parseInt(m[1]);
                                     if (num>offset && num<offset+100) {
                                         d.states.brightness = num-offset;
                                         d.states.on = true;
@@ -851,7 +868,7 @@ function processMessage(uid,msg,res) {
                             console.log("[ProcessMessage" + uid + "] 2) Change on device "+getDeviceDbgName(d)+': '+JSON.stringify(d.states));
                         }
                         else if (d.properties.deviceInfo.model=="remotevol") {
-                            /*var m = remoteVolumeRegexp.exec(k.name);
+                            /*let m = remoteVolumeRegexp.exec(k.name);
                             if (m) {
                                 d.states.on = true;
                                 modd = true;
@@ -1030,8 +1047,8 @@ function initUserDevices(user,test,force) {
 exports.initUserDevices = initUserDevices;
 
 function createTestDataBundle(obj,user) {
-    var devices = [];
-    var h;
+    let devices = [];
+    let h;
     if (obj && obj.action && (h = obj.action.hosts)) {
         //console.log("[DeviceTable" + user.uid + "] Ecco 0 "+(typeof userData)+" "+userData);
         let filters = user.options.filters;
@@ -1040,8 +1057,8 @@ function createTestDataBundle(obj,user) {
         let shAdded = {};
         Object.keys(h).forEach(function (key) {
             if (h.hasOwnProperty(key)) {
-                var dev = h[key];
-                var devname = key;
+                let dev = h[key];
+                let devname = key;
                 let subtype;
                 let devnick = getTranslation(devname,configuredLocale);
                 if (devnick==devname && dev.nick)
@@ -1232,13 +1249,13 @@ function createTestDataBundle(obj,user) {
 }
 
 function createDeviceTable(obj,user) {
-    var devices = {
+    let devices = {
         "remote":{},
         "switch":{},
         "lightlum":{},
         "sh":{}
     };
-    var h;
+    let h;
     if (obj && obj.action && (h = obj.action.hosts)) {
         //console.log("[DeviceTable" + user.uid + "] Ecco 0 "+(typeof userData)+" "+userData);
         let filters = user.options.filters;
@@ -1252,7 +1269,7 @@ function createDeviceTable(obj,user) {
                 console.log("[DeviceTable" + user.uid + "] Ecco 2 "+devname+" "+dev.type);
                 if (dev.type=="DeviceCT10" || dev.type=="DeviceAllOne" || dev.type=="DeviceRM" || dev.type.indexOf("DeviceUpnpIR")==0) {
 
-                    var numDatas = {};
+                    let numDatas = {};
                     for (let i = 0; i<dev.dir.length; i++) {
                         key = dev.dir[i];
                         let kks = key.split(':');
@@ -1309,9 +1326,9 @@ function createDeviceTable(obj,user) {
                     }
                     console.log("[DeviceTable" + user.uid + "] Ecco 4 "+JSON.stringify(numDatas));
                     Object.keys(numDatas).forEach(function (rn) {
-                        var maxprefix = 0;
-                        var realPrefix = "";
-                        var np = numDatas[rn];
+                        let maxprefix = 0;
+                        let realPrefix = "";
+                        let np = numDatas[rn];
                         Object.keys(np).forEach(function (key2) {
                             if (np.hasOwnProperty(key2)) {
                                 if (maxprefix<np[key2]) {
@@ -1477,8 +1494,8 @@ function getRemoteVolumeKey(brightn,remoteObj,key) {
     if (!remoteObj || !remoteObj.volumekeys[key])
         return null;
     let k = remoteObj.volumekeys[key];
-    var intval = k.flag==3?parseInt(brightn)-50:parseInt(brightn);
-    var volk = "";
+    let intval = k.flag==3?parseInt(brightn)-50:parseInt(brightn);
+    let volk = "";
     if (intval<0) {
         intval = -intval;
         if (k.l.indexOf(volk = key+intval+"-")<0)
@@ -1574,7 +1591,8 @@ var remoteBigNumTemplate = {
             "model": "remotenum",
             "remote": "$remote$",
             "device": "$device$",
-            "offset": "$offset$"
+            "offset": "$offset$",
+            "allowed": {}
         }
     },
     "states": {
@@ -1599,8 +1617,7 @@ var remoteNumTemplate = {
     "properties": {
         "type": "action.devices.types.LIGHT",
         "traits": [
-            "action.devices.traits.OnOff",
-            'action.devices.traits.Brightness'
+            "action.devices.traits.OnOff"
         ],
         "name": {
             "defaultNames": [
