@@ -44,7 +44,7 @@ function registerAgent(app) {
     let uid = authProvider.checkAuth(request,response,'/login',false);
     if (!uid)
         return;
-    authToken = datastore.Auth.userobj[uid].tokens['access'].s;
+    let authToken = datastore.Auth.userobj[uid].tokens.access.s;
 
     if (!reqdata.inputs) {
       response.status(401).set({
@@ -468,8 +468,8 @@ function registerAgent(app) {
           respCommands.push({
             ids: [dev.id],
             status: executionResponse.status,
-            errorCode: executionResponse.errorCode
-                ? executionResponse.errorCode : undefined,
+            errorCode: executionResponse.errorCode?
+                executionResponse.errorCode : undefined,
             states: execState,
           });
         }
@@ -548,7 +548,7 @@ function registerAgent(app) {
     // TODO - add error and debug to response
 
     deviceCommand.state[curDevice.id] = Object.assign({},execDevice[curDevice.id].states);
-    deviceCommand.state[curDevice.id]['cmd'] = command['command'];
+    deviceCommand.state[curDevice.id].cmd = command.command;
     if (runAction)
       app.changeState(deviceCommand);
 

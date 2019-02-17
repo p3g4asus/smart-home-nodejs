@@ -415,6 +415,11 @@ function deviceOnMessage(eventDetail,msg,dev,uid) {
         }
         catch (e) {
             console.log(e.stack);
+            try {
+                let ud = DBData[uid];
+                console.log("Current DT "+JSON.stringify(ud.devicetable));
+            }
+            catch (e2) {}
         }
     }
 }
