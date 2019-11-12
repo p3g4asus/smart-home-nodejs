@@ -1,5 +1,5 @@
 var net = require('net');
-const config = require('./config-provider');
+//const config = require('./config-provider');
 
 var MFZClient = (function(){
 
@@ -33,14 +33,14 @@ var MFZClient = (function(){
             that.disconnect();
             that.retry = oldretry;
             that.onclose(true);
-        }
+        };
 
         that.onMsgReceived = function(timeout) {
             console.log("[CLI onMsgReceived]");
             if (that.timerPing!==null)
                 clearTimeout(that.timerPing);
             that.timerPing = setTimeout(that.onMsgNotReceived, timeout*1000);
-        }
+        };
 
         that.currentPromise = null;
         that.promise = function(str,timeout) {
@@ -50,7 +50,7 @@ var MFZClient = (function(){
                 timeout = timeout || 30;
                 timeout*=1000;
                 that.currentPromise = {};
-                let idxcomma = str.indexOf(' ')
+                let idxcomma = str.indexOf(' ');
                 that.currentPromise.msg = idxcomma>0?str.substring(0,idxcomma):str;
                 that.currentPromise.promise = new Promise(function(resolve,reject) {
                     that.currentPromise.resolve = resolve;
@@ -65,22 +65,22 @@ var MFZClient = (function(){
                 });
                 return that.currentPromise.promise;
             }
-        }
+        };
 
         that.onDevices = null;
         that.setOnDevices = function(fun) {
             that.onDevices = fun;
-        }
+        };
 
         that.onMessage = null;
         that.setOnMessage = function(fun) {
             that.onMessage = fun;
-        }
+        };
 
         that.onError = null;
         that.setOnError = function(fun) {
             that.onError = fun;
-        }
+        };
 
         that.disconnect = function() {
             console.log('[TCPC' + that.id + '] Disconnect called');
@@ -91,7 +91,7 @@ var MFZClient = (function(){
             that.safelyDestroy();
             that.devicedl = false;
             that.retry = 0;
-        }
+        };
 
         that.safelyDestroy = function() {
             if (that.tcpclient) {
@@ -101,7 +101,7 @@ var MFZClient = (function(){
                 that.tcpclient.destroy();
                 that.tcpclient = null;
             }
-        }
+        };
 
         that.onclose = function(force) {
             console.log("[TCPC" + that.id + "] Connection Onclose");
@@ -121,11 +121,11 @@ var MFZClient = (function(){
                         that.currentPromise.reject(that.id);
                         that.currentPromise = null;
                     }
-                    console.log("[CLI OnClose] Calling disconnect maxretry: "+that.maxRetry+" retry: "+that.retry+" force: "+f)
+                    console.log("[CLI OnClose] Calling disconnect maxretry: "+that.maxRetry+" retry: "+that.retry+" force: "+f);
                     that.disconnect();
                 }
             }
-        }
+        };
         that.ondata = function(data) {
             if (!that.currentPromise)
                 that.retry = 0;
@@ -185,7 +185,7 @@ var MFZClient = (function(){
                 that.currentOut = "";
                 that.lastMsgTs = 0;
             }
-        }
+        };
 
         that.connect = function(fun) {
             console.log("[TCPC" + that.id + "] Connect called");
@@ -199,19 +199,19 @@ var MFZClient = (function(){
                 console.log('[TCPC' + that.id + '] Connecting to '+that.host+':'+that.port);
                 that.tcpclient.connect(that.port, that.host, function() {
                     console.log('[TCPC' + that.id + '] Connected');
-                    fun = typeof fun === "undefined"?"devicedl":fun
+                    fun = typeof fun === "undefined"?"devicedl":fun;
                     if (fun.startsWith("devicedl"))
                         that.onMsgReceived(75);
                     that.writecmnd(fun);
                 });
             }
-        }
+        };
         that.writecmnd = function(cmnd) {
             if (!that.tcpclient)
                 that.connect(cmnd);
             else {
                 let msg;
-                let idxcomma = cmnd.indexOf(' ')
+                let idxcomma = cmnd.indexOf(' ');
                 if (cmnd=="devicedl")
                     that.devicedl = false;
                 that.expectedresp = idxcomma>0?cmnd.substring(0,idxcomma):cmnd;
@@ -219,7 +219,7 @@ var MFZClient = (function(){
                 that.tcpclient.write(msg = '@'+that.msgidx+' '+cmnd+'\r\n');
                 console.log("[TCPC" + that.id + "] writing "+msg);
             }
-        }
+        };
         that.emitir = function(device,keys) {
             if (!(keys instanceof Array))
                 keys = [keys];
