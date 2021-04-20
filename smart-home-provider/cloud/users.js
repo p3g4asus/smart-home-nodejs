@@ -278,7 +278,7 @@ var User = (function(){
                     });
                 }
                 if (!res1.length)
-                    resolve(out);
+                    resolve1(out);
                 else
                     loadSingleUser(0);
             });
