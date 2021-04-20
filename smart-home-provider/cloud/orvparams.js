@@ -1165,7 +1165,7 @@ function createTestDataBundle(obj,user) {
                         }
                     }
                 }
-                else if (dev.type=="DeviceS20" ||
+                else if (dev.type=="DeviceS20" || dev.type=="DeviceTasmotaswitch" ||
                     (dev.type=="DevicePrimelan" &&
                     ((subtype = parseInt(dev.subtype))==0 || subtype==2))) {
                     add.type+="s"+dev.type.substring(6);
@@ -1375,7 +1375,7 @@ function createDeviceTable(obj,user) {
                         }
                     }
                 }
-                else if (dev.type=="DeviceS20" ||
+                else if (dev.type=="DeviceS20" || dev.type=="DeviceTasmotaswitch" ||
                     (dev.type=="DevicePrimelan" &&
                     ((subtype = parseInt(dev.subtype))==0 || subtype==2))) {
                     let devnick = getTranslation(devname,configuredLocale);
