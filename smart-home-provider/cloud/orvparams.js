@@ -735,7 +735,7 @@ function processMessage(uid,msg,res) {
             let devname = dev.name;
             if (msg=="ActionNotifystate" || msg=="ActionStateon" || msg=="ActionStateon" || msg=="ActionStatechange") {
                 let subtype;
-                if (dev.type=="DeviceS20" ||
+                if (dev.type=="DeviceS20" || dev.type=="DeviceTasmotaswitch" ||
                     (dev.type=="DevicePrimelan" &&
                     ((subtype = parseInt(dev.subtype))==0 || subtype==2))) {
                     devices.some(function(d) {
